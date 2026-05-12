@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block content %}
+{# 用户管理页头 #}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+  <h3 class="mb-0">用户管理</h3>
+</div>
+
+{# 新增用户表单 #}
+<div class="card shadow-sm p-4 mb-4">
+  <h5 class="mb-3">新增用户</h5>
+  <form class="row g-3" method="post" action="{{ url_for('create_user') }}">
+    <div class="col-md-4">
+      <label class="form-label">用户名</label>
+      <input class="form-control" name="username" required>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">密码</label>
+      <input class="form-control" type="password" name="password" required>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">角色</label>
+      <select class="form-select" name="role">
+        {# 角色选择：普通用户/管理员 #}
+        <option value="user">普通用户</option>
+        <option value="admin">管理员</option>
+      </select>
+    </div>
+    <div class="col-md-1 d-flex align-items-end">
+      <button class="btn btn-primary w-100" type="submit">创建</button>
+    </div>
+  </form>
+</div>
+
+{# 用户列表表格 #}
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>ID</th>
+          <th>用户名</th>
+          <th>角色</th>
+          <th>状态</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {# 用户循环：显示状态与启用/停用按钮 #}
+        {% for user in users %}
+        <tr>
+          <td>{{ user.id }}</td>
+          <td>{{ user.username }}</td>
+          <td>{{ user.role }}</td>
+          <td>
+            {% if user.status == 'active' %}
+              启用
+            {% else %}
+              停用
+            {% endif %}
+          </td>
+          <td>
+            <form method="post" action="{{ url_for('toggle_user', user_id=user.id) }}" class="d-inline">
+              <button class="btn btn-sm btn-outline-warning" type="submit">
+                {% if user.status == 'active' %}停用{% else %}启用{% endif %}
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="text-center text-muted py-4">暂无用户</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

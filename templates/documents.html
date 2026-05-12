@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% block content %}
+{# 文档检索页 #}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+  <h3 class="mb-0">文档检索</h3>
+</div>
+
+<form class="card shadow-sm p-3 mb-3" method="get">
+  <div class="row g-3">
+    <div class="col-md-4">
+      <label class="form-label">文档名称</label>
+      <input class="form-control" name="q" value="{{ query }}" placeholder="按文档名模糊搜索">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">设备</label>
+      <input class="form-control" name="device" value="{{ device_query }}" placeholder="设备编码或名称">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">上传人</label>
+      <input class="form-control" name="uploader" value="{{ uploader }}" placeholder="按上传人筛选">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">文档类型</label>
+      <select class="form-select" name="doc_type">
+        <option value="">全部</option>
+        {% for value, label in doc_types %}
+        <option value="{{ value }}" {% if doc_type == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">文档状态</label>
+      <select class="form-select" name="status">
+        <option value="">全部</option>
+        {% for key, label in doc_status_labels.items() %}
+        <option value="{{ key }}" {% if status == key %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">开始日期</label>
+      <input class="form-control" type="date" name="start_date" value="{{ start_date }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">结束日期</label>
+      <input class="form-control" type="date" name="end_date" value="{{ end_date }}">
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+      <button class="btn btn-primary w-100" type="submit">搜索</button>
+    </div>
+  </div>
+</form>
+
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>设备编码</th>
+          <th>设备名称</th>
+          <th>文档名称</th>
+          <th>类型</th>
+          <th>版本</th>
+          <th>状态</th>
+          <th>上传人</th>
+          <th>上传时间</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ row.device_code }}</td>
+          <td>{{ row.device_name }}</td>
+          <td>{{ row.doc_name }}</td>
+          <td>{{ doc_type_labels.get(row.doc_type) }}</td>
+          <td>v{{ row.version }}</td>
+          <td>{{ doc_status_labels.get(row.status, row.status) }}</td>
+          <td>{{ row.uploaded_by }}</td>
+          <td>{{ row.upload_time }}</td>
+          <td>
+            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('device_detail', device_id=row.device_id) }}">查看设备</a>
+            {% if row.status in ['active', 'archived'] %}
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('download_doc', doc_id=row.id) }}">下载</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" class="text-center text-muted py-4">暂无结果</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

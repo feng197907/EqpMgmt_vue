@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block content %}
+{# 上传文档表单：选择类型、文件与备注 #}
+<h3 class="mb-3">上传文档 - {{ device.device_name }}</h3>
+<form class="card shadow-sm p-4" method="post" enctype="multipart/form-data">
+  <div class="row g-3">
+    <div class="col-md-6">
+      <label class="form-label">文档类型</label>
+      <select class="form-select" name="doc_type" required>
+        {# 文档类型下拉选项 #}
+        {% for value, label in doc_types %}
+        <option value="{{ value }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">文件</label>
+      <input class="form-control" type="file" name="file" required>
+    </div>
+    <div class="col-12">
+      <label class="form-label">备注</label>
+      <textarea class="form-control" name="remarks" rows="3"></textarea>
+    </div>
+  </div>
+  <div class="mt-4">
+    <button class="btn btn-primary" type="submit">上传</button>
+    <a class="btn btn-outline-secondary" href="{{ url_for('device_detail', device_id=device.id) }}">返回</a>
+  </div>
+</form>
+{% endblock %}

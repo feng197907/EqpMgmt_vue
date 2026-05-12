@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block content %}
+{# 审批待办列表（管理员） #}
+<h3 class="mb-3">审批待办</h3>
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>ID</th>
+          <th>文档名称</th>
+          <th>类型</th>
+          <th>版本</th>
+          <th>提交人</th>
+          <th>提交时间</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ row.id }}</td>
+          <td>{{ row.doc_name }}</td>
+          <td>{{ doc_type_labels.get(row.doc_type) }}</td>
+          <td>v{{ row.version }}</td>
+          <td>{{ row.created_by }}</td>
+          <td>{{ row.created_at }}</td>
+          <td>
+            <form method="post" action="{{ url_for('decide_approval', request_id=row.id) }}" class="d-flex flex-wrap gap-2">
+              <input class="form-control form-control-sm" type="password" name="password" placeholder="确认密码" required>
+              <input class="form-control form-control-sm" type="text" name="comment" placeholder="审批意见(可选)">
+              <button class="btn btn-sm btn-success" type="submit" name="decision" value="approve">通过</button>
+              <button class="btn btn-sm btn-outline-danger" type="submit" name="decision" value="reject">拒绝</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-center text-muted py-4">暂无待办</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

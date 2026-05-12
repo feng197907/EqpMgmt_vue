@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block content %}
+{# 借阅记录列表页 #}
+<h3 class="mb-3">借阅记录</h3>
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>文档名称</th>
+          <th>类型</th>
+          <th>版本</th>
+          <th>借阅人</th>
+          <th>借阅时间</th>
+          <th>归还时间</th>
+          <th>状态</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {# 借阅记录循环，仅借阅人本人可归还 #}
+        {% for row in rows %}
+        <tr>
+          <td>{{ row.doc_name }}</td>
+          <td>{{ doc_type_labels.get(row.doc_type) }}</td>
+          <td>v{{ row.version }}</td>
+          <td>{{ row.borrower }}</td>
+          <td>{{ row.borrow_date }}</td>
+          <td>{{ row.return_date or '-' }}</td>
+          <td>{{ row.status }}</td>
+          <td>
+            {% if row.status == 'borrowed' and row.borrower == current_user.username %}
+            <form method="post" action="{{ url_for('return_doc', borrow_id=row.id) }}">
+              <button class="btn btn-sm btn-outline-success" type="submit">归还</button>
+            </form>
+            {% else %}
+            -
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="text-center text-muted py-4">暂无记录</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

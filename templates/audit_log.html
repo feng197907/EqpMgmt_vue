@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block content %}
+{# 审计日志列表，管理员只读查看 #}
+<h3 class="mb-3">审计日志</h3>
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>操作人</th>
+          <th>时间</th>
+          <th>操作</th>
+          <th>目标类型</th>
+          <th>目标ID</th>
+          <th>详情</th>
+          <th>操作前值</th>
+          <th>操作后值</th>
+          <th>修改原因</th>
+          <th>IP</th>
+        </tr>
+      </thead>
+      <tbody>
+        {# 日志记录循环 #}
+        {% for row in rows %}
+        <tr>
+          <td>{{ row.user }}</td>
+          <td>{{ row.log_time }}</td>
+          <td>{{ row.action }}</td>
+          <td>{{ row.target_type }}</td>
+          <td>{{ row.target_id or '-' }}</td>
+          <td>{{ row.details or '-' }}</td>
+          <td>{{ row.before_value or '-' }}</td>
+          <td>{{ row.after_value or '-' }}</td>
+          <td>{{ row.reason or '-' }}</td>
+          <td>{{ row.ip_address or '-' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="10" class="text-center text-muted py-4">暂无日志</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
