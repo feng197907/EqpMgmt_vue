@@ -1,5 +1,5 @@
-import os
 import json
+import os
 import tempfile
 
 import pytest
@@ -19,8 +19,9 @@ def client(monkeypatch):
     init_db()
 
     # 导入 app 放在这里以确保 database.DB_PATH 已被替换
-    from app import app
+    from app import create_app
 
+    app = create_app()
     app.config["TESTING"] = True
     app.config["LOGIN_DISABLED"] = True
 
@@ -59,7 +60,9 @@ def test_get_devices(client):
 def test_change_status_noncritical(client):
     dev_id = insert_device(device_code="DEV-002")
     payload = {"new_status": "maintenance", "reason": "periodic check"}
-    rv = client.post(f"/api/devices/{dev_id}/status", data=json.dumps(payload), content_type="application/json")
+    rv = client.post(
+        f"/api/devices/{dev_id}/status", data=json.dumps(payload), content_type="application/json"
+    )
     assert rv.status_code == 200
     data = rv.get_json()
     assert data.get("status") == "updated"
@@ -76,7 +79,9 @@ def test_change_status_noncritical(client):
 def test_change_status_critical_creates_request(client):
     dev_id = insert_device(device_code="DEV-003")
     payload = {"new_status": "retired", "reason": "end of life"}
-    rv = client.post(f"/api/devices/{dev_id}/status", data=json.dumps(payload), content_type="application/json")
+    rv = client.post(
+        f"/api/devices/{dev_id}/status", data=json.dumps(payload), content_type="application/json"
+    )
     assert rv.status_code == 202
     data = rv.get_json()
     assert data.get("status") == "pending"

@@ -8,7 +8,7 @@
 {# 新增用户表单 #}
 <div class="card shadow-sm p-4 mb-4">
   <h5 class="mb-3">新增用户</h5>
-  <form class="row g-3" method="post" action="{{ url_for('create_user') }}">
+  <form class="row g-3" method="post" action="{{ url_for('users.create_user') }}">
     <div class="col-md-4">
       <label class="form-label">用户名</label>
       <input class="form-control" name="username" required>
@@ -17,16 +17,25 @@
       <label class="form-label">密码</label>
       <input class="form-control" type="password" name="password" required>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-4">
       <label class="form-label">角色</label>
       <select class="form-select" name="role">
-        {# 角色选择：普通用户/管理员 #}
-        <option value="user">普通用户</option>
-        <option value="admin">管理员</option>
+        {# 按角色类别分组显示 #}
+        {% for group_name, roles_in_group in [
+            ('管理类', ['admin', 'qa_manager', 'production_supervisor']),
+            ('技术类', ['equipment_engineer', 'validation_engineer', 'metrology_engineer']),
+            ('文档类', ['archivist'])
+        ] %}
+          <optgroup label="{{ group_name }}">
+            {% for role_key in roles_in_group %}
+              <option value="{{ role_key }}">{{ role_labels.get(role_key, role_key) }}</option>
+            {% endfor %}
+          </optgroup>
+        {% endfor %}
       </select>
     </div>
-    <div class="col-md-1 d-flex align-items-end">
-      <button class="btn btn-primary w-100" type="submit">创建</button>
+    <div class="col-md-12">
+      <button class="btn btn-primary" type="submit">创建用户</button>
     </div>
   </form>
 </div>
@@ -50,16 +59,20 @@
         <tr>
           <td>{{ user.id }}</td>
           <td>{{ user.username }}</td>
-          <td>{{ user.role }}</td>
+          <td>
+            {# 显示角色中文标签 #}
+            <span class="badge bg-info text-dark">{{ user.role_label }}</span>
+            <small class="text-muted ms-1">({{ user.role }})</small>
+          </td>
           <td>
             {% if user.status == 'active' %}
-              启用
+              <span class="badge bg-success">启用</span>
             {% else %}
-              停用
+              <span class="badge bg-secondary">停用</span>
             {% endif %}
           </td>
           <td>
-            <form method="post" action="{{ url_for('toggle_user', user_id=user.id) }}" class="d-inline">
+            <form method="post" action="{{ url_for('users.toggle_user', user_id=user.id) }}" class="d-inline">
               <button class="btn btn-sm btn-outline-warning" type="submit">
                 {% if user.status == 'active' %}停用{% else %}启用{% endif %}
               </button>

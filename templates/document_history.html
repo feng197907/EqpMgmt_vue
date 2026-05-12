@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+  <div>
+    <h3 class="mb-1">文档版本历史</h3>
+    <div class="text-muted">{{ current_doc.doc_name }} · {{ doc_type_label }} · 设备 {{ current_doc.device_id }}</div>
+  </div>
+  <div class="btn-group">
+    <a class="btn btn-outline-primary" href="{{ url_for('devices.device_detail', device_id=current_doc.device_id) }}">返回设备详情</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('documents.document_search') }}">返回检索</a>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-3"><strong>设备编码：</strong>{{ current_doc.device_code }}</div>
+      <div class="col-md-3"><strong>文档类型：</strong>{{ doc_type_label }}</div>
+      <div class="col-md-3"><strong>当前版本：</strong>v{{ current_doc.version }}</div>
+      <div class="col-md-3"><strong>当前状态：</strong>{{ doc_status_labels.get(current_doc.status, current_doc.status) }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>版本</th>
+          <th>文件名</th>
+          <th>上传人</th>
+          <th>上传时间</th>
+          <th>下载次数</th>
+          <th>状态</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in history_rows %}
+        <tr>
+          <td>v{{ row.version }}</td>
+          <td>{{ row.doc_name }}</td>
+          <td>{{ row.uploaded_by }}</td>
+          <td>{{ row.upload_time }}</td>
+          <td>{{ row.download_count or 0 }}</td>
+          <td>{{ doc_status_labels.get(row.status, row.status) }}</td>
+          <td>
+            {% if row.status in ['active', 'archived'] %}
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('documents.download_doc', doc_id=row.id) }}">下载</a>
+            {% endif %}
+            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('devices.device_detail', device_id=row.device_id) }}">设备详情</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-center text-muted py-4">暂无版本历史</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

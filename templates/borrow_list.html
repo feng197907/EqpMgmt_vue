@@ -30,7 +30,7 @@
           <td>{{ row.status }}</td>
           <td>
             {% if row.status == 'borrowed' and row.borrower == current_user.username %}
-            <form method="post" action="{{ url_for('return_doc', borrow_id=row.id) }}">
+            <form method="post" action="{{ url_for('borrowing.return_doc', borrow_id=row.id) }}">
               <button class="btn btn-sm btn-outline-success" type="submit">归还</button>
             </form>
             {% else %}

@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+  <div>
+    <h3 class="mb-1">用户故事中心</h3>
+    <div class="text-muted">按角色聚合常用入口，覆盖第 7 章中最常见的业务场景。</div>
+  </div>
+  <div class="btn-group">
+    <a class="btn btn-outline-primary" href="{{ url_for('dashboard.dashboard') }}">设备看板</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('documents.document_search') }}">文档检索</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="text-muted small">设备总数</div>
+        <div class="fs-3 fw-bold">{{ device_total }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="text-muted small">待审批</div>
+        <div class="fs-3 fw-bold">{{ pending_approvals }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="text-muted small">借阅中</div>
+        <div class="fs-3 fw-bold">{{ borrowed_total }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="text-muted small">校准提醒</div>
+        <div class="fs-3 fw-bold">{{ calibration_reminders|length }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  {% for card in role_cards %}
+  <div class="col-lg-4 col-md-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <h5 class="card-title">{{ card.role }}</h5>
+        <p class="text-muted mb-3">{{ card.summary }}</p>
+        <ul class="mb-3">
+          {% for item in card.card_features %}
+          <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+        <div class="d-flex flex-wrap gap-2">
+          {% for link in card.links %}
+            {% if link.get('doc_id') is not none %}
+            <a class="btn btn-sm btn-outline-primary" href="{{ url_for(link.endpoint, doc_id=link.doc_id) }}">{{ link.label }}</a>
+            {% elif link.get('device_id') is not none %}
+            <a class="btn btn-sm btn-outline-primary" href="{{ url_for(link.endpoint, device_id=link.device_id) }}">{{ link.label }}</a>
+            {% else %}
+            <a class="btn btn-sm btn-outline-primary" href="{{ url_for(link.endpoint) }}">{{ link.label }}</a>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <h5 class="card-title">最近文档</h5>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th>设备</th>
+                <th>文档</th>
+                <th>版本</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in recent_documents %}
+              <tr>
+                <td>{{ row.device_code }}</td>
+                <td>{{ row.doc_name }}</td>
+                <td>v{{ row.version }}</td>
+                <td>{{ doc_status_labels.get(row.status, row.status) }}</td>
+                <td><a class="btn btn-sm btn-outline-secondary" href="{{ url_for('documents.document_history', doc_id=row.id) }}">历史</a></td>
+              </tr>
+              {% else %}
+              <tr><td colspan="5" class="text-center text-muted py-3">暂无文档</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <h5 class="card-title">最近借阅</h5>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th>设备</th>
+                <th>文档</th>
+                <th>借阅人</th>
+                <th>状态</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in recent_borrows %}
+              <tr>
+                <td>{{ row.device_code }}</td>
+                <td>{{ row.doc_name }} v{{ row.version }}</td>
+                <td>{{ row.borrower }}</td>
+                <td>{{ row.status }}</td>
+              </tr>
+              {% else %}
+              <tr><td colspan="4" class="text-center text-muted py-3">暂无借阅</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

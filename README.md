@@ -9,7 +9,7 @@
 - 文档管理：支持上传、下载、版本控制和文档状态流转。
 - 借阅管理：记录文档借阅与归还。
 - 审批流程：支持基础审批与电子签名确认。
-- 权限控制：支持管理员与普通用户角色。
+- 权限控制：支持 7 种角色（管理员、QA经理、设备工程师、验证工程师、档案管理员、生产主管、计量工程师），每种角色有独立的功能权限。
 - 审计日志：记录关键操作，便于追踪变更。
 
 ## 环境要求
@@ -64,11 +64,46 @@ http://127.0.0.1:5000
 
 ## 项目结构
 
-- `app.py`：Flask 路由、业务逻辑和 API。
-- `database.py`：SQLite 初始化与轻量迁移。
-- `templates/`：Jinja2 页面模板。
-- `static/`：前端样式资源。
-- `tests/`：自动化测试。
+```
+DMS/
+├── app.py                 # Flask 应用入口（工厂函数）
+├── config.py              # 全局配置（角色、权限、文档类型等）
+├── extensions.py          # Flask 扩展（LoginManager 单例）
+├── database.py            # SQLite 初始化与迁移
+├── models/
+│   └── user.py            # User 模型
+├── blueprints/            # Flask Blueprint 模块化路由
+│   ├── auth.py            # 认证（登录/登出）
+│   ├── devices.py         # 设备管理
+│   ├── documents.py       # 文档管理
+│   ├── borrowing.py       # 借阅管理
+│   ├── approvals.py      # 审批流程
+│   ├── device_changes.py # 设备变更
+│   ├── users.py           # 用户管理
+│   └── dashboard.py      # 看板
+├── utils/                 # 工具函数
+│   ├── decorators.py      # 权限装饰器（@admin_required, @role_required）
+│   ├── audit.py           # 审计日志
+│   ├── file_utils.py      # 文件处理
+│   ├── db_utils.py        # 数据库操作
+│   └── helpers.py         # 辅助函数
+├── templates/             # Jinja2 页面模板
+├── static/                # 前端样式资源
+├── tests/                 # 自动化测试
+└── uploads/              # 上传文件存储
+```
+
+## 角色权限说明
+
+| 角色 | 角色键值 | 主要功能 |
+|------|----------|----------|
+| 管理员 | admin | 所有功能 |
+| QA经理 | qa_manager | 质量审批、报告查看 |
+| 设备工程师 | equipment_engineer | 设备操作、校准维护 |
+| 验证工程师 | validation_engineer | IQ/OQ/PQ管理 |
+| 档案管理员 | archivist | 文档上传归档 |
+| 生产主管 | production_supervisor | 生产审批 |
+| 计量工程师 | metrology_engineer | 计量器具管理 |
 
 ## 说明
 

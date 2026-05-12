@@ -3,7 +3,7 @@
 {# 设备列表页头与快捷入口 #}
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
   <h3 class="mb-0">设备列表</h3>
-  <a class="btn btn-success" href="{{ url_for('add_device') }}">新增设备</a>
+  <a class="btn btn-success" href="{{ url_for('dashboard.add_device') }}">新增设备</a>
 </div>
 
 {# 搜索与管理员筛选（显示停用设备） #}
@@ -55,9 +55,9 @@
           </td>
           <td>
             {# 管理员可切换设备状态 #}
-            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('device_detail', device_id=device.id) }}">查看</a>
+            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('devices.device_detail', device_id=device.id) }}">查看</a>
             {% if current_user.is_admin %}
-            <form method="post" action="{{ url_for('toggle_device', device_id=device.id) }}" class="d-inline">
+            <form method="post" action="{{ url_for('devices.toggle_device', device_id=device.id) }}" class="d-inline">
               {% if show_inactive %}
               <input type="hidden" name="show_inactive" value="1">
               {% endif %}

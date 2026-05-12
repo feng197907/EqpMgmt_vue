@@ -16,8 +16,9 @@ def client(monkeypatch):
     monkeypatch.setattr(dbmod, "DB_PATH", tmp)
     init_db()
 
-    from app import app
+    from app import create_app
 
+    app = create_app()
     app.config["TESTING"] = True
 
     with app.test_client() as c:

@@ -79,9 +79,10 @@
           <td>{{ row.uploaded_by }}</td>
           <td>{{ row.upload_time }}</td>
           <td>
-            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('device_detail', device_id=row.device_id) }}">查看设备</a>
+            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('devices.device_detail', device_id=row.device_id) }}">查看设备</a>
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('documents.document_history', doc_id=row.id) }}">版本历史</a>
             {% if row.status in ['active', 'archived'] %}
-            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('download_doc', doc_id=row.id) }}">下载</a>
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('documents.download_doc', doc_id=row.id) }}">下载</a>
             {% endif %}
           </td>
         </tr>
