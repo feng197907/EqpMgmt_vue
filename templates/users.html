@@ -1,50 +1,60 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
+
 {% block content %}
-{# 用户管理页头 #}
-<div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
-  <h3 class="mb-0">用户管理</h3>
+<!-- 页面标题 -->
+<div class="page-header">
+  <div>
+    <h1 class="page-title">用户管理</h1>
+    <p class="page-subtitle">管理系统用户账号和角色权限</p>
+  </div>
 </div>
 
-{# 新增用户表单 #}
-<div class="card shadow-sm p-4 mb-4">
-  <h5 class="mb-3">新增用户</h5>
-  <form class="row g-3" method="post" action="{{ url_for('users.create_user') }}">
-    <div class="col-md-4">
-      <label class="form-label">用户名</label>
-      <input class="form-control" name="username" required>
-    </div>
-    <div class="col-md-4">
-      <label class="form-label">密码</label>
-      <input class="form-control" type="password" name="password" required>
-    </div>
-    <div class="col-md-4">
-      <label class="form-label">角色</label>
-      <select class="form-select" name="role">
-        {# 按角色类别分组显示 #}
-        {% for group_name, roles_in_group in [
-            ('管理类', ['admin', 'qa_manager', 'production_supervisor']),
-            ('技术类', ['equipment_engineer', 'validation_engineer', 'metrology_engineer']),
-            ('文档类', ['archivist'])
-        ] %}
+<!-- 新增用户表单 -->
+<div class="card mb-4">
+  <div class="card-header">
+    <span>新增用户</span>
+  </div>
+  <div class="card-body">
+    <form class="row g-3" method="post" action="{{ url_for('users.create_user') }}">
+      <div class="col-md-3">
+        <label class="form-label required">用户名</label>
+        <input class="form-control" name="username" placeholder="输入用户名" required>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label required">密码</label>
+        <input class="form-control" type="password" name="password" placeholder="输入密码" required>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label required">角色</label>
+        <select class="form-select" name="role" required>
+          {% for group_name, roles in ROLE_GROUPS.items() %}
           <optgroup label="{{ group_name }}">
-            {% for role_key in roles_in_group %}
-              <option value="{{ role_key }}">{{ role_labels.get(role_key, role_key) }}</option>
+            {% for role_key in roles %}
+            <option value="{{ role_key }}">{{ ROLE_LABELS[role_key] }}</option>
             {% endfor %}
           </optgroup>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="col-md-12">
-      <button class="btn btn-primary" type="submit">创建用户</button>
-    </div>
-  </form>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2 d-flex align-items-end">
+        <button class="btn btn-primary w-100" type="submit">
+          <i data-lucide="user-plus"></i>
+          创建用户
+        </button>
+      </div>
+    </form>
+  </div>
 </div>
 
-{# 用户列表表格 #}
-<div class="card shadow-sm">
-  <div class="table-responsive">
-    <table class="table table-hover mb-0">
-      <thead class="table-light">
+<!-- 用户列表 -->
+<div class="card">
+  <div class="card-header">
+    <span>用户列表</span>
+    <span class="text-muted" style="font-weight: 400;">共 {{ users|length }} 个用户</span>
+  </div>
+  <div class="table-wrapper">
+    <table class="table">
+      <thead>
         <tr>
           <th>ID</th>
           <th>用户名</th>
@@ -54,36 +64,86 @@
         </tr>
       </thead>
       <tbody>
-        {# 用户循环：显示状态与启用/停用按钮 #}
         {% for user in users %}
         <tr>
-          <td>{{ user.id }}</td>
-          <td>{{ user.username }}</td>
           <td>
-            {# 显示角色中文标签 #}
-            <span class="badge bg-info text-dark">{{ user.role_label }}</span>
-            <small class="text-muted ms-1">({{ user.role }})</small>
+            <code class="text-muted">#{{ user.id }}</code>
+          </td>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <div class="user-avatar-sm">{{ user.username[0]|upper }}</div>
+              <span class="fw-medium">{{ user.username }}</span>
+            </div>
+          </td>
+          <td>
+            {% set role_label = role_labels.get(user.role, user.role) %}
+            {% set role_class = 'primary' if user.role == 'admin' else 'success' if user.role == 'qa_manager' else 'info' if user.role == 'equipment_engineer' else 'warning' if user.role == 'metrology_engineer' else 'neutral' %}
+            <span class="status-badge" style="background: var(--color-{{ role_class }}-light); color: var(--color-{{ role_class }});">
+              {{ role_label }}
+            </span>
           </td>
           <td>
             {% if user.status == 'active' %}
-              <span class="badge bg-success">启用</span>
+            <span class="status-badge success">启用</span>
             {% else %}
-              <span class="badge bg-secondary">停用</span>
+            <span class="status-badge neutral">停用</span>
             {% endif %}
           </td>
           <td>
+            {% if user.id != current_user.id %}
             <form method="post" action="{{ url_for('users.toggle_user', user_id=user.id) }}" class="d-inline">
-              <button class="btn btn-sm btn-outline-warning" type="submit">
-                {% if user.status == 'active' %}停用{% else %}启用{% endif %}
+              <button class="btn btn-sm {% if user.status == 'active' %}btn-outline-warning{% else %}btn-outline-success{% endif %}" type="submit">
+                {% if user.status == 'active' %}
+                <i data-lucide="user-x"></i>
+                停用
+                {% else %}
+                <i data-lucide="user-check"></i>
+                启用
+                {% endif %}
               </button>
             </form>
+            {% else %}
+            <span class="text-muted" style="font-size: 12px;">
+              <i data-lucide="user" style="width: 14px; height: 14px;"></i>
+              当前用户
+            </span>
+            {% endif %}
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="5" class="text-center text-muted py-4">暂无用户</td></tr>
+        <tr>
+          <td colspan="5">
+            <div class="empty-state">
+              <div class="empty-state-icon">
+                <i data-lucide="users-x"></i>
+              </div>
+              <div class="empty-state-title">暂无用户</div>
+              <div class="empty-state-description">使用上方表单创建第一个用户</div>
+            </div>
+          </td>
+        </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
+
+<style>
+  .user-avatar-sm {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: var(--color-primary);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: var(--border-radius-sm);
+  }
+</style>
+
+<script>
+  lucide.createIcons();
+</script>
 {% endblock %}
