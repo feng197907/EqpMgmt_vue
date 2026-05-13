@@ -291,6 +291,165 @@ DMS/
 | 生产主管 | production_supervisor | 生产审批 |
 | 计量工程师 | metrology_engineer | 计量器具管理 |
 
+## 数据库切换 (SQLite → MySQL)
+
+项目默认使用 SQLite 数据库。如需切换到 MySQL，请按以下步骤操作：
+
+### 1. 安装 MySQL 客户端库
+
+```bash
+pip install PyMySQL cryptography
+```
+
+### 2. 创建 MySQL 数据库
+
+```sql
+CREATE DATABASE dms_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'dms_user'@'%' IDENTIFIED BY 'your_password';
+GRANT ALL PRIVILEGES ON dms_db.* TO 'dms_user'@'%';
+FLUSH PRIVILEGES;
+```
+
+### 3. 修改数据库连接
+
+编辑 `database.py`，将 `get_db()` 函数中的连接方式从 SQLite 改为 MySQL：
+
+```python
+import pymysql
+
+def get_db():
+    """获取数据库连接"""
+    # MySQL 配置（生产环境推荐使用环境变量）
+    return pymysql.connect(
+        host='localhost',
+        port=3306,
+        user='dms_user',
+        password='your_password',
+        database='dms_db',
+        charset='utf8mb4',
+        cursorclass=pymysql.cursors.DictCursor
+    )
+```
+
+### 4. 环境变量配置（推荐）
+
+为安全起见，建议使用环境变量存储数据库凭据：
+
+```python
+import os
+
+def get_db():
+    """获取数据库连接"""
+    db_type = os.environ.get('DB_TYPE', 'sqlite')
+
+    if db_type == 'mysql':
+        return pymysql.connect(
+            host=os.environ.get('DB_HOST', 'localhost'),
+            port=int(os.environ.get('DB_PORT', 3306)),
+            user=os.environ.get('DB_USER', 'dms_user'),
+            password=os.environ.get('DB_PASSWORD', ''),
+            database=os.environ.get('DB_NAME', 'dms_db'),
+            charset='utf8mb4',
+            cursorclass=pymysql.cursors.DictCursor
+        )
+    else:
+        # SQLite 保持原有逻辑
+        ...
+```
+
+启动时设置环境变量：
+
+```bash
+# Windows
+set DB_TYPE=mysql
+set DB_HOST=localhost
+set DB_PORT=3306
+set DB_USER=dms_user
+set DB_PASSWORD=your_password
+set DB_NAME=dms_db
+
+# Linux/Mac
+export DB_TYPE=mysql
+export DB_HOST=localhost
+export DB_PORT=3306
+export DB_USER=dms_user
+export DB_PASSWORD=your_password
+export DB_NAME=dms_db
+```
+
+### 5. 初始化数据库表
+
+MySQL 数据库创建后，首次启动应用会自动建表。如需手动初始化，参考 `database.py` 中的建表 SQL。
+
+### 6. 数据迁移（可选）
+
+如需将现有 SQLite 数据迁移到 MySQL：
+
+```python
+# 使用 Python 脚本迁移
+import sqlite3
+import pymysql
+
+# 读取 SQLite 数据
+sqlite_conn = sqlite3.connect('dms.db')
+sqlite_cursor = sqlite_conn.cursor()
+
+# 连接 MySQL
+mysql_conn = pymysql.connect(
+    host='localhost',
+    port=3306,
+    user='dms_user',
+    password='your_password',
+    database='dms_db',
+    charset='utf8mb4'
+)
+
+# 迁移数据（根据实际表结构调整）
+tables = ['users', 'devices', 'documents', 'borrowing_records', ...]
+for table in tables:
+    sqlite_cursor.execute(f"SELECT * FROM {table}")
+    rows = sqlite_cursor.fetchall()
+    for row in rows:
+        # 插入到 MySQL（注意字段映射）
+        mysql_cursor.execute(f"INSERT INTO {table} VALUES (...)", row)
+
+mysql_conn.commit()
+sqlite_conn.close()
+mysql_conn.close()
+```
+
+### 7. Docker Compose 快速部署 MySQL
+
+如使用 Docker，可快速启动 MySQL 服务：
+
+```yaml
+# docker-compose.yml
+version: '3.8'
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: dms_db
+      MYSQL_USER: dms_user
+      MYSQL_PASSWORD: dms_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:
+```
+
+启动命令：
+
+```bash
+docker-compose up -d
+```
+
+---
+
 ## 说明
 
 - 上传文件保存在 `uploads/` 目录。
