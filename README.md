@@ -1,34 +1,40 @@
 # 设备档案文档管理系统 (DMS)
 
-一个基于 Flask + SQLite 的设备档案与文档管理系统，支持设备台账、文档上传下载、借阅管理、审批流、审计日志和基础权限控制。
+一个基于 Flask + SQLite 的设备档案与文档管理系统，支持设备台账、文档上传下载、借阅管理、审批流、审计日志、菜单权限和基础权限控制。
 
 ## 主要功能
 
-- 设备档案管理：新增、编辑、停用、查询设备。
-- 设备看板：按状态展示设备统计与列表。
-- 文档管理：支持上传、下载、版本控制和文档状态流转。
-- 借阅管理：记录文档借阅与归还。
-- 审批流程：支持基础审批与电子签名确认。
-- 权限控制：支持 7 种角色（管理员、QA经理、设备工程师、验证工程师、档案管理员、生产主管、计量工程师），每种角色有独立的功能权限。
-- 审计日志：记录关键操作，便于追踪变更。
+- **设备档案管理**：新增、编辑、停用、报废、查询设备
+- **设备看板**：按状态展示设备统计与列表
+- **设备校准**：设备校准记录管理
+- **设备维护**：维护计划与维护记录
+- **文档管理**：支持上传、下载、版本控制和文档状态流转
+- **借阅管理**：记录文档借阅与归还
+- **审批流程**：支持基础审批与电子签名确认
+- **菜单权限**：管理类角色可为用户分配菜单访问权限
+- **密码重置**：用户可申请重置密码，管理类角色可审批处理
+- **权限控制**：支持 7 种角色，每种角色有独立的功能权限
+- **审计日志**：记录关键操作，便于追踪变更
+- **系统设置**：可配置审批开关、文档自动生效等选项
+- **提醒中心**：集中展示待办事项和提醒通知
 
 ## 环境要求
 
-- Python 3.10+。
-- Windows 下推荐使用项目自带虚拟环境 `.venv`。
+- Python 3.10+
+- Windows 下推荐使用项目自带虚拟环境 `.venv`
 
 ## 快速开始
 
 1. 安装依赖：
 
 ```bash
-.venv\\Scripts\\python.exe -m pip install -r requirements-dev.txt
+.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 ```
 
 2. 启动服务：
 
 ```bash
-.venv\\Scripts\\python.exe app.py
+.venv\Scripts\python.exe app.py
 ```
 
 3. 打开浏览器访问：
@@ -37,12 +43,113 @@
 http://127.0.0.1:5000
 ```
 
+## 默认账号
+
+| 用户名 | 密码 | 角色 |
+|--------|------|------|
+| admin | admin123 | 管理员 |
+| user | user123 | 设备工程师 |
+
+> ⚠️ **安全提示**：首次登录后请务必修改默认密码！
+
+首次启动时会自动初始化 SQLite 数据库，并写入上述默认账号。
+
+## 本地验证建议
+
+1. 使用 `admin` 登录后新增设备
+2. 进入设备详情页，上传文档并确认版本号自动递增
+3. 在设备详情页下载文档，观察下载次数递增
+4. 进入"借阅记录"查看借阅与归还
+5. 管理员可在设备列表中停用/启用设备
+6. 进入"用户管理"为用户分配菜单权限
+7. 在"审计日志"中查看操作记录
+
+## 项目结构
+
+```
+DMS/
+├── app.py                 # Flask 应用入口（工厂函数）
+├── config.py              # 全局配置（角色、权限、菜单、文档类型等）
+├── extensions.py          # Flask 扩展（LoginManager 单例）
+├── database.py            # SQLite 初始化与迁移
+├── requirements.txt       # Python 依赖
+├── models/
+│   └── user.py            # User 模型
+├── blueprints/            # Flask Blueprint 模块化路由
+│   ├── auth.py            # 认证（登录/登出）
+│   ├── devices.py         # 设备管理
+│   ├── documents.py       # 文档管理
+│   ├── borrowing.py       # 借阅管理
+│   ├── approvals.py       # 审批流程
+│   ├── device_changes.py  # 设备变更
+│   ├── users.py           # 用户管理
+│   ├── dashboard.py       # 看板
+│   ├── password.py        # 密码重置
+│   ├── search.py          # 全局搜索
+│   ├── settings.py        # 系统设置
+│   └── maintenance.py     # 维护计划
+├── utils/                 # 工具函数
+│   ├── decorators.py      # 权限装饰器（@admin_required, @role_required）
+│   ├── audit.py           # 审计日志
+│   ├── file_utils.py      # 文件处理
+│   ├── db_utils.py        # 数据库操作
+│   └── helpers.py         # 辅助函数
+├── templates/             # Jinja2 页面模板
+├── static/                # 前端样式资源
+├── tests/                 # 自动化测试
+├── docs/                  # 文档目录
+│   └── 使用手册.md         # 系统使用手册
+└── uploads/               # 上传文件存储
+```
+
+## 数据库表结构
+
+| 表名 | 说明 |
+|------|------|
+| users | 用户表（用户名、密码、角色、状态、权限） |
+| devices | 设备表（编号、名称、型号、位置、状态） |
+| documents | 文档表（关联设备、类型、名称、版本、路径） |
+| borrow_records | 借阅记录表 |
+| approval_requests | 审批请求表 |
+| approval_steps | 审批步骤表 |
+| signatures | 电子签名表 |
+| audit_logs | 审计日志表 |
+| system_settings | 系统设置表 |
+| password_reset_requests | 密码重置请求表 |
+| maintenance_plan | 维护计划表 |
+| maintenance_record | 维护记录表 |
+
+## 角色权限说明
+
+| 角色 | 角色键值 | 主要功能 |
+|------|----------|----------|
+| 管理员 | admin | 所有功能 |
+| QA经理 | qa_manager | 质量审批、报告查看 |
+| 设备工程师 | equipment_engineer | 设备操作、校准维护 |
+| 验证工程师 | validation_engineer | IQ/OQ/PQ管理 |
+| 档案管理员 | archivist | 文档上传归档 |
+| 生产主管 | production_supervisor | 生产审批 |
+| 计量工程师 | metrology_engineer | 计量器具管理 |
+
+### 菜单权限
+
+| 菜单 | 说明 |
+|------|------|
+| dashboard | 数据看板 |
+| device_management | 设备管理 |
+| document_center | 文档中心 |
+| user_management | 用户管理 |
+| system_settings | 系统设置 |
+| reminder_center | 提醒中心 |
+
+管理员可为用户分配不同的菜单访问权限。
+
 ## 测试
 
 项目提供了基于 `pytest` 的自动化测试。安装开发依赖后可执行：
 
 ```bash
-.venv\\Scripts\\python.exe -m pytest
+.venv\Scripts\python.exe -m pytest
 ```
 
 测试会使用临时数据库文件，不会影响本地的 `dms.db`。
@@ -60,7 +167,7 @@ http://127.0.0.1:5000
 
 ```bash
 # 本地打包（排除 .venv, .git, docs 等）
-zip -r dms.zip . -x "*.git*" -x "*.venv*" -x "__pycache__/*" -x "*.pyc" -x ".pytest_cache/*" -x "docs/*" -x "*.md"
+zip -r dms.zip . -x "*.git*" -x "*.venv*" -x "__pycache__/*" -x "*.pyc" -x ".pytest_cache/*" -x "docs/*"
 
 # 上传到服务器
 scp dms.zip root@你的服务器IP:/data/EquipmentManagement/
@@ -104,32 +211,13 @@ pkill -f gunicorn
 cd /data/EquipmentManagement
 nohup gunicorn --bind 0.0.0.0:5000 --workers 2 app:app > gunicorn.log 2>&1 &
 
-
 # 云服务器更新代码，重新部署
 cd /data/EquipmentManagement
 git pull origin main
 pip3 install -r requirements.txt
 pkill -f gunicorn
-ps aux | grep gunicorn
 nohup gunicorn --bind 0.0.0.0:5000 --workers 2 app:app > gunicorn.log 2>&1 &
 ```
-
-cd /data/EquipmentManagement
-
-# 丢弃本地修改
-git checkout -- README.md app.py database.py templates/base.html templates/device_detail.html
-
-# 删除冲突文件
-rm -f requirements.txt
-
-# 重新拉取
-git pull origin main
-
-# 重启
-pkill -f gunicorn
-nohup gunicorn --bind 0.0.0.0:5000 --workers 2 app:app > gunicorn.log 2>&1 &
-
-
 
 ### 配置开机自启
 
@@ -157,8 +245,6 @@ systemctl start dms
 
 ### GitHub Webhook 自动部署
 
-代码 push 到 main 分支后自动更新服务器。
-
 #### 1. 服务器上初始化 Git 仓库
 
 ```bash
@@ -184,112 +270,13 @@ EOF
 chmod +x /data/EquipmentManagement/deploy-webhook.sh
 ```
 
-#### 3. 创建 Webhook 监听服务
-
-```bash
-cat > /usr/local/bin/webhook-listener.py << 'EOF'
-#!/usr/bin/env python3
-from http.server import HTTPServer, BaseHTTPRequestHandler
-import subprocess
-
-class Handler(BaseHTTPRequestHandler):
-    def do_POST(self):
-        if self.path == '/webhook':
-            subprocess.run(['/data/EquipmentManagement/deploy-webhook.sh'], shell=True)
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(b'OK')
-        else:
-            self.send_response(404)
-            self.end_headers()
-
-HTTPServer(('0.0.0.0', 5001), Handler).serve_forever()
-EOF
-
-chmod +x /usr/local/bin/webhook-listener.py
-nohup python3 /usr/local/bin/webhook-listener.py > webhook.log 2>&1 &
-```
-
-#### 4. 开放 5001 端口
-
-腾讯云安全组添加 5001 端口入站规则。
-
-#### 5. GitHub 配置 Webhook
+#### 3. GitHub 配置 Webhook
 
 - 仓库 → Settings → Webhooks → Add webhook
 - Payload URL: `http://你的服务器IP:5001/webhook`
 - Content type: `application/json`
 - Events: Just push events
 - Add webhook
-
-#### 6. 日常更新
-
-```bash
-git add .
-git commit -m "更新内容"
-git push origin main
-# 服务器自动拉取并重启
-```
-
----
-
-## 默认账号
-
-- admin / admin123
-- user / user123
-
-首次启动时会自动初始化 SQLite 数据库，并写入上述默认账号。
-
-## 本地验证建议
-
-1. 使用 `admin` 登录后新增设备。
-2. 进入设备详情页，上传文档并确认版本号自动递增。
-3. 在设备详情页下载文档，观察下载次数递增。
-4. 进入“借阅记录”查看借阅与归还。
-5. 管理员可在设备列表中停用/启用设备，并在“审计日志”中查看操作记录。
-
-## 项目结构
-
-```
-DMS/
-├── app.py                 # Flask 应用入口（工厂函数）
-├── config.py              # 全局配置（角色、权限、文档类型等）
-├── extensions.py          # Flask 扩展（LoginManager 单例）
-├── database.py            # SQLite 初始化与迁移
-├── models/
-│   └── user.py            # User 模型
-├── blueprints/            # Flask Blueprint 模块化路由
-│   ├── auth.py            # 认证（登录/登出）
-│   ├── devices.py         # 设备管理
-│   ├── documents.py       # 文档管理
-│   ├── borrowing.py       # 借阅管理
-│   ├── approvals.py      # 审批流程
-│   ├── device_changes.py # 设备变更
-│   ├── users.py           # 用户管理
-│   └── dashboard.py      # 看板
-├── utils/                 # 工具函数
-│   ├── decorators.py      # 权限装饰器（@admin_required, @role_required）
-│   ├── audit.py           # 审计日志
-│   ├── file_utils.py      # 文件处理
-│   ├── db_utils.py        # 数据库操作
-│   └── helpers.py         # 辅助函数
-├── templates/             # Jinja2 页面模板
-├── static/                # 前端样式资源
-├── tests/                 # 自动化测试
-└── uploads/              # 上传文件存储
-```
-
-## 角色权限说明
-
-| 角色 | 角色键值 | 主要功能 |
-|------|----------|----------|
-| 管理员 | admin | 所有功能 |
-| QA经理 | qa_manager | 质量审批、报告查看 |
-| 设备工程师 | equipment_engineer | 设备操作、校准维护 |
-| 验证工程师 | validation_engineer | IQ/OQ/PQ管理 |
-| 档案管理员 | archivist | 文档上传归档 |
-| 生产主管 | production_supervisor | 生产审批 |
-| 计量工程师 | metrology_engineer | 计量器具管理 |
 
 ## 数据库切换 (SQLite → MySQL)
 
@@ -312,141 +299,16 @@ FLUSH PRIVILEGES;
 
 ### 3. 修改数据库连接
 
-编辑 `database.py`，将 `get_db()` 函数中的连接方式从 SQLite 改为 MySQL：
-
-```python
-import pymysql
-
-def get_db():
-    """获取数据库连接"""
-    # MySQL 配置（生产环境推荐使用环境变量）
-    return pymysql.connect(
-        host='localhost',
-        port=3306,
-        user='dms_user',
-        password='your_password',
-        database='dms_db',
-        charset='utf8mb4',
-        cursorclass=pymysql.cursors.DictCursor
-    )
-```
-
-### 4. 环境变量配置（推荐）
-
-为安全起见，建议使用环境变量存储数据库凭据：
-
-```python
-import os
-
-def get_db():
-    """获取数据库连接"""
-    db_type = os.environ.get('DB_TYPE', 'sqlite')
-
-    if db_type == 'mysql':
-        return pymysql.connect(
-            host=os.environ.get('DB_HOST', 'localhost'),
-            port=int(os.environ.get('DB_PORT', 3306)),
-            user=os.environ.get('DB_USER', 'dms_user'),
-            password=os.environ.get('DB_PASSWORD', ''),
-            database=os.environ.get('DB_NAME', 'dms_db'),
-            charset='utf8mb4',
-            cursorclass=pymysql.cursors.DictCursor
-        )
-    else:
-        # SQLite 保持原有逻辑
-        ...
-```
-
-启动时设置环境变量：
-
-```bash
-# Windows
-set DB_TYPE=mysql
-set DB_HOST=localhost
-set DB_PORT=3306
-set DB_USER=dms_user
-set DB_PASSWORD=your_password
-set DB_NAME=dms_db
-
-# Linux/Mac
-export DB_TYPE=mysql
-export DB_HOST=localhost
-export DB_PORT=3306
-export DB_USER=dms_user
-export DB_PASSWORD=your_password
-export DB_NAME=dms_db
-```
-
-### 5. 初始化数据库表
-
-MySQL 数据库创建后，首次启动应用会自动建表。如需手动初始化，参考 `database.py` 中的建表 SQL。
-
-### 6. 数据迁移（可选）
-
-如需将现有 SQLite 数据迁移到 MySQL，使用项目提供的迁移脚本：
-
-```bash
-# 1. 安装依赖
-pip install PyMySQL
-
-# 2. 配置 MySQL 连接（编辑脚本中的 MYSQL_CONFIG 或使用环境变量）
-export DB_PASSWORD=your_password
-
-# 3. 预览迁移计划（不执行）
-python migrate_to_mysql.py --dry-run
-
-# 4. 执行迁移
-python migrate_to_mysql.py
-
-# 5. 验证数据后，可选删除 SQLite 数据库
-rm dms.db
-```
-
-**脚本功能：**
-- 自动检测并迁移所有数据表
-- 支持批量插入（避免内存溢出）
-- 自动处理 datetime 格式转换
-- 迁移前后数据统计对比
-- 支持 --dry-run 预览模式
-- 支持 --no-clear 保留现有数据
-
-### 7. Docker Compose 快速部署 MySQL
-
-如使用 Docker，可快速启动 MySQL 服务：
-
-```yaml
-# docker-compose.yml
-version: '3.8'
-services:
-  mysql:
-    image: mysql:8.0
-    environment:
-      MYSQL_ROOT_PASSWORD: root_password
-      MYSQL_DATABASE: dms_db
-      MYSQL_USER: dms_user
-      MYSQL_PASSWORD: dms_password
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-
-volumes:
-  mysql_data:
-```
-
-启动命令：
-
-```bash
-docker-compose up -d
-```
+编辑 `database.py`，将 `get_db()` 函数中的连接方式从 SQLite 改为 MySQL。
 
 ---
 
 ## 说明
 
-- 上传文件保存在 `uploads/` 目录。
-- 数据库存储文件为 `dms.db`。
-- 如果是首次部署，直接启动应用即可自动建表。
+- 上传文件保存在 `uploads/` 目录
+- 数据库存储文件为 `dms.db`
+- 如果是首次部署，直接启动应用即可自动建表
+- 详细使用说明请参考 [使用手册](docs/使用手册.md)
 
 ## 常见问题
 
@@ -462,11 +324,15 @@ docker-compose up -d
 
 请确认文件格式在允许范围内，当前支持 `pdf`、`doc`、`docx`、`xls`、`xlsx`、`jpg`、`jpeg`、`png`。
 
+### 4. 忘记密码怎么办？
+
+请联系系统管理员（admin），由管理员手动重置密码。
+
 ## 计划中的能力
 
 当前仓库已覆盖核心 MVP 功能，并在持续完善中，包括：
 
-- 更完整的 REST API。
-- 更细粒度的审批流。
-- 更完善的文档生命周期管理。
-- 更全面的单元测试覆盖。
+- 更完整的 REST API
+- 更细粒度的审批流
+- 更完善的文档生命周期管理
+- 更全面的单元测试覆盖
