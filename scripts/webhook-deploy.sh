@@ -3,7 +3,7 @@
 # 用于接收 GitHub Webhook 并自动拉取更新
 
 # 配置
-GIT_DIR="/root/EquipmentManagement"
+GIT_DIR="/data/EquipmentManagement"
 WEBHOOK_SECRET="your_secret_token_here"  # 替换为您的 webhook 密钥
 LOG_FILE="/var/log/webhook-deploy.log"
 
