@@ -3,6 +3,8 @@ import os
 
 from flask import Flask
 
+from database import get_db
+
 from blueprints import (
     approvals_bp,
     auth_bp,
@@ -52,6 +54,21 @@ def create_app():
 
     # 初始化数据库
     init_db()
+
+    # 全局上下文处理器 - 注入待审批数量
+    @app.context_processor
+    def inject_pending_count():
+        """向所有模板注入待审批数量"""
+        try:
+            conn = get_db()
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) as total FROM approval_requests WHERE status = 'pending'")
+            result = cur.fetchone()
+            pending_count = result["total"] if result else 0
+            conn.close()
+        except Exception:
+            pending_count = 0
+        return dict(pending_count=pending_count)
 
     return app
 

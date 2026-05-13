@@ -80,7 +80,7 @@
         <a href="{{ url_for('approvals.approvals') }}" class="nav-item {% if request.endpoint == 'approvals.approvals' %}active{% endif %}">
           <i data-lucide="clipboard-check"></i>
           <span>待审批</span>
-          <span class="nav-badge">3</span>
+          <span class="nav-badge">{{ pending_count if pending_count else 0 }}</span>
         </a>
       </div>
 
