@@ -29,6 +29,11 @@ def upload_doc(device_id):
         conn.close()
         flash("设备不存在。", "warning")
         return redirect(url_for("auth.index"))
+
+    # 检查审批流程是否启用
+    approval_enabled = get_system_setting("approval_enabled", "true")
+    initial_status = "active" if approval_enabled != "true" else "draft"
+
     if request.method == "POST":
         doc_type = request.form.get("doc_type")
         remarks = request.form.get("remarks", "").strip()
@@ -57,7 +62,7 @@ def upload_doc(device_id):
         file.save(file_path)
         cur.execute(
             "INSERT INTO documents (device_id, doc_type, doc_name, version, file_path, uploaded_by, remarks, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (device_id, doc_type, safe_name, version, file_path, current_user.username, remarks, "draft"),
+            (device_id, doc_type, safe_name, version, file_path, current_user.username, remarks, initial_status),
         )
         conn.commit()
         doc_id = cur.lastrowid
@@ -66,7 +71,10 @@ def upload_doc(device_id):
             f"上传 {DOC_TYPE_LABELS.get(doc_type)} v{version}",
         )
         conn.close()
-        flash("文档已上传。", "success")
+        if initial_status == "active":
+            flash("文档已上传并生效（审批流程已禁用）。", "success")
+        else:
+            flash("文档已上传。", "success")
         return redirect(url_for("devices.device_detail", device_id=device_id))
     conn.close()
     return render_template("upload_doc.html", device=device, doc_types=DOC_TYPES)
