@@ -302,10 +302,14 @@ def _ensure_default_user_mysql(cur, username, password, role):
     cur.execute("SELECT id FROM users WHERE username = %s", (username,))
     if cur.fetchone() is None:
         hashed = generate_password_hash(password)
-        cur.execute(
-            "INSERT INTO users (username, password, role) VALUES (%s, %s, %s)",
-            (username, hashed, role),
-        )
+        try:
+            cur.execute(
+                "INSERT INTO users (username, password, role) VALUES (%s, %s, %s)",
+                (username, hashed, role),
+            )
+        except pymysql.err.IntegrityError:
+            # 用户已存在，跳过
+            pass
 
 
 def _init_sqlite_tables(cur, conn):
