@@ -69,8 +69,7 @@ class User(UserMixin):
 
 def load_user(user_id):
     """Flask-Login 用户加载回调"""
-    conn = get_db()
-    cur = conn.cursor()
+    cur, conn = get_db_cursor()
     cur.execute("SELECT * FROM users WHERE id = ?", (user_id,))
     row = cur.fetchone()
     conn.close()

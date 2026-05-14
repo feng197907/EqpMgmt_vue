@@ -1,4 +1,5 @@
 import os
+import re
 from contextlib import contextmanager
 
 # 尝试导入 MySQL 驱动，如果不可用则回退到 SQLite
@@ -27,12 +28,14 @@ MYSQL_CONFIG = {
     'password': os.environ.get('MYSQL_PASSWORD', ''),
     'database': os.environ.get('MYSQL_DATABASE', 'dms_db'),
     'charset': 'utf8mb4',
-    'cursorclass': 'DictCursor',
 }
 
-# SQLite 配置
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "dms.db")
+
+def _convert_placeholder(sql):
+    """转换 SQL 占位符：SQLite 用 ?，MySQL 用 %s"""
+    if DB_TYPE == 'mysql' and MYSQL_AVAILABLE:
+        return re.sub(r'\?', '%s', sql)
+    return sql
 
 
 def get_db():
@@ -65,6 +68,75 @@ def _get_sqlite_db():
     conn.execute("PRAGMA journal_mode = WAL")
     conn.execute("PRAGMA busy_timeout = 5000")
     return conn
+
+
+class CompatibleCursor:
+    """兼容两种数据库的游标封装"""
+    def __init__(self, cursor):
+        self._cursor = cursor
+    
+    def execute(self, sql, args=None):
+        sql = _convert_placeholder(sql)
+        return self._cursor.execute(sql, args)
+    
+    def executemany(self, sql, args=None):
+        sql = _convert_placeholder(sql)
+        return self._cursor.executemany(sql, args)
+    
+    def fetchone(self):
+        return self._cursor.fetchone()
+    
+    def fetchall(self):
+        return self._cursor.fetchall()
+    
+    @property
+    def row_factory(self):
+        return self._cursor.row_factory
+    
+    def __getattr__(self, name):
+        return getattr(self._cursor, name)
+
+
+class CompatibleConnection:
+    """兼容两种数据库的连接封装"""
+    def __init__(self, conn):
+        self._conn = conn
+    
+    def cursor(self):
+        return CompatibleCursor(self._conn.cursor())
+    
+    def commit(self):
+        return self._conn.commit()
+    
+    def rollback(self):
+        return self._conn.rollback()
+    
+    def close(self):
+        return self._conn.close()
+    
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, *args):
+        self.close()
+    
+    def __getattr__(self, name):
+        return getattr(self._conn, name)
+
+
+def get_db():
+    """获取数据库连接（自动兼容占位符）"""
+    if DB_TYPE == 'mysql' and MYSQL_AVAILABLE:
+        conn = _get_mysql_db()
+    else:
+        conn = _get_sqlite_db()
+    return CompatibleConnection(conn)
+
+
+def get_db_cursor():
+    """获取带有兼容占位符的数据库游标"""
+    conn = get_db()
+    return conn.cursor(), conn
 
 
 def init_db():
