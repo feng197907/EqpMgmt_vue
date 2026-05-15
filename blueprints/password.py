@@ -144,7 +144,7 @@ def admin_reset_password(request_id):
         cur.execute(
             """UPDATE password_reset_requests
                SET status = 'cancelled',
-                   processed_at = datetime('now'),
+                   processed_at = NOW(),
                    processed_by = %s
                WHERE id = %s""",
             (current_user.username, request_id),
@@ -171,7 +171,7 @@ def admin_reset_password(request_id):
     cur.execute(
         """UPDATE password_reset_requests
            SET status = 'completed',
-               processed_at = datetime('now'),
+               processed_at = NOW(),
                processed_by = %s
            WHERE id = %s""",
         (current_user.username, request_id),
