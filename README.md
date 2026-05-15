@@ -89,9 +89,9 @@
  ## 手动重新部署
 
 ```bash
-git pull origin main
-pkill -f gunicorn
-nohup gunicorn --bind 0.0.0.0:5000 --workers 2 app:app > gunicorn.log 2>&1 &
+cd /data/EquipmentManagement
+chmod +x server_deploy.sh
+./server_deploy.sh
  ```
 
  ## 自动化部署（GitHub Webhook）
