@@ -74,23 +74,61 @@ def dashboard():
 @login_required
 def reminders():
     """提醒中心"""
+    # 筛选参数
+    filter_severity = request.args.get("severity", "").strip()  # danger/warning/info/all
+    filter_device = request.args.get("device", "").strip()
+
     conn = get_db()
     cur = conn.cursor()
-    cur.execute(
-        "SELECT d.*, dev.device_code, dev.device_name FROM documents d JOIN devices dev ON dev.id = d.device_id WHERE d.doc_type = 'calibration' AND d.is_deleted = 0 ORDER BY d.upload_time DESC"
-    )
+
+    # 校准文档查询（支持设备名/编码筛选）
+    if filter_device:
+        cur.execute(
+            "SELECT d.*, dev.device_code, dev.device_name FROM documents d "
+            "JOIN devices dev ON dev.id = d.device_id "
+            "WHERE d.doc_type = 'calibration' AND d.is_deleted = 0 "
+            "AND (dev.device_code LIKE %s OR dev.device_name LIKE %s) "
+            "ORDER BY d.upload_time DESC",
+            (f"%{filter_device}%", f"%{filter_device}%"),
+        )
+    else:
+        cur.execute(
+            "SELECT d.*, dev.device_code, dev.device_name FROM documents d "
+            "JOIN devices dev ON dev.id = d.device_id "
+            "WHERE d.doc_type = 'calibration' AND d.is_deleted = 0 "
+            "ORDER BY d.upload_time DESC"
+        )
     calibration_rows = cur.fetchall()
     cur.execute("SELECT COUNT(*) AS total FROM approval_requests WHERE status = 'pending'")
     pending_approvals = cur.fetchone()["total"]
     cur.execute("SELECT COUNT(*) AS total FROM borrow_records WHERE status = 'borrowed'")
     borrowed_total = cur.fetchone()["total"]
     conn.close()
-    calibration_reminders = build_calibration_reminders(calibration_rows)
+
+    all_reminders = build_calibration_reminders(calibration_rows)
+
+    # 状态筛选
+    if filter_severity and filter_severity != "all":
+        calibration_reminders = [r for r in all_reminders if r["severity"] == filter_severity]
+    else:
+        calibration_reminders = all_reminders
+
+    # 统计各状态数量（用于筛选 tab 上的计数）
+    severity_counts = {
+        "danger": sum(1 for r in all_reminders if r["severity"] == "danger"),
+        "warning": sum(1 for r in all_reminders if r["severity"] == "warning"),
+        "info": sum(1 for r in all_reminders if r["severity"] == "info"),
+        "all": len(all_reminders),
+    }
+
     return render_template(
         "reminders.html",
         calibration_reminders=calibration_reminders,
         pending_approvals=pending_approvals,
         borrowed_total=borrowed_total,
+        filter_severity=filter_severity or "all",
+        filter_device=filter_device,
+        severity_counts=severity_counts,
     )
 
 
@@ -238,6 +276,25 @@ def api_due_maintenance():
     conn = get_db()
     reminders = build_due_maintenance_reminders(conn, days=days)
     conn.close()
+
+
+@dashboard_bp.route("/api/dashboard/calibration-overdue-count")
+@login_required
+def api_calibration_overdue_count():
+    """获取校准文档逾期数量（API，供顶部铃铛使用）"""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT d.*, dev.device_code, dev.device_name "
+        "FROM documents d JOIN devices dev ON dev.id = d.device_id "
+        "WHERE d.doc_type = 'calibration' AND d.is_deleted = 0 "
+        "ORDER BY d.upload_time DESC"
+    )
+    calibration_rows = cur.fetchall()
+    conn.close()
+    all_reminders = build_calibration_reminders(calibration_rows)
+    overdue_count = sum(1 for r in all_reminders if r["severity"] == "danger")
+    return jsonify({"overdue_count": overdue_count})
 
     # 如果指定了维护类型，进行筛选
     if maintenance_type:

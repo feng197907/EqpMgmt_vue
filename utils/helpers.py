@@ -45,14 +45,37 @@ def parse_timestamp(value):
 
 
 def build_calibration_reminders(rows, reminder_window_days=60, cycle_days=365):
-    """构建校准提醒列表"""
+    """构建校准提醒列表
+
+    优先使用文档的 calibration_due_date 字段；若为空则回退到 upload_time + cycle_days 推算。
+    """
     reminders = []
     today = datetime.now(timezone.utc).date()
     for row in rows:
-        uploaded_at = parse_timestamp(row["upload_time"])
-        if uploaded_at is None:
-            continue
-        due_date = uploaded_at.date() + timedelta(days=cycle_days)
+        # 优先用精确的 calibration_due_date
+        raw_due = row.get("calibration_due_date") if hasattr(row, "get") else None
+        if raw_due:
+            if isinstance(raw_due, str):
+                try:
+                    due_date = datetime.strptime(raw_due, "%Y-%m-%d").date()
+                except ValueError:
+                    due_date = None
+            elif hasattr(raw_due, "date"):
+                due_date = raw_due.date()
+            elif hasattr(raw_due, "year"):
+                due_date = raw_due
+            else:
+                due_date = None
+        else:
+            due_date = None
+
+        # fallback：upload_time + cycle_days
+        if due_date is None:
+            uploaded_at = parse_timestamp(row["upload_time"])
+            if uploaded_at is None:
+                continue
+            due_date = uploaded_at.date() + timedelta(days=cycle_days)
+
         days_left = (due_date - today).days
         if days_left > reminder_window_days:
             continue
@@ -79,6 +102,7 @@ def build_calibration_reminders(rows, reminder_window_days=60, cycle_days=365):
                 "days_left": days_left,
                 "severity": severity,
                 "label": label,
+                "has_explicit_due": raw_due is not None,
             }
         )
     return reminders

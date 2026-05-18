@@ -1,6 +1,18 @@
 {% extends 'base.html' %}
 {% block content %}
 
+<style>
+.form-badge-info {
+  font-size: 11px;
+  font-weight: 400;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--color-primary-light, #DBEAFE);
+  color: var(--color-primary, #2563EB);
+  margin-left: 6px;
+  vertical-align: middle;
+}
+</style>
 {# 文档上传页 - 现代化设计 #}
 <div class="upload-page">
   {# 页面头部 #}
@@ -110,6 +122,16 @@
           <span class="form-hint">提供更多信息有助于文档管理和检索</span>
         </div>
 
+        {# 校准到期日：仅文档类型为校准记录时显示 #}
+        <div class="form-group" id="calibrationDueDateGroup" style="display:none;">
+          <label class="form-label" for="calibration_due_date">
+            下次校准日期
+            <span class="form-badge-info">校准记录专属</span>
+          </label>
+          <input type="date" class="form-control" name="calibration_due_date" id="calibration_due_date" style="max-width: 240px;">
+          <span class="form-hint">填写后将自动纳入提醒中心，到期前提前告警</span>
+        </div>
+
         <div class="form-actions">
           <button type="submit" class="btn btn-primary btn-upload-submit" id="submitBtn">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
@@ -187,7 +209,21 @@ document.querySelectorAll('.doc-type-option').forEach(option => {
     document.querySelectorAll('.doc-type-option').forEach(o => o.classList.remove('selected'));
     option.classList.add('selected');
     option.querySelector('input').checked = true;
+    toggleCalibrationField();
   });
+});
+
+function toggleCalibrationField() {
+  const selected = document.querySelector('input[name="doc_type"]:checked');
+  const group = document.getElementById('calibrationDueDateGroup');
+  if (group) {
+    group.style.display = (selected && selected.value === 'calibration') ? 'block' : 'none';
+  }
+}
+
+// 初始化：检查默认选中项
+document.addEventListener('DOMContentLoaded', function() {
+  toggleCalibrationField();
 });
 
 // 表单提交

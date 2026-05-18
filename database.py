@@ -261,6 +261,27 @@ def init_db():
     conn.close()
 
 
+def _migrate_mysql_columns(cur):
+    """MySQL 增量升级：添加历史遗留列（安全，幂等）"""
+    migrations = [
+        ("documents", "calibration_due_date",
+         "ALTER TABLE documents ADD COLUMN calibration_due_date DATE DEFAULT NULL"),
+    ]
+    for table, col, ddl in migrations:
+        try:
+            cur.execute(
+                "SELECT COUNT(*) as cnt FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+                (table, col)
+            )
+            row = cur.fetchone()
+            exists = row["cnt"] if isinstance(row, dict) else row[0]
+            if not exists:
+                cur.execute(ddl)
+        except Exception:
+            pass
+
+
 def _init_mysql_tables(cur, conn):
     """初始化 MySQL 表结构"""
     tables = [
@@ -300,6 +321,7 @@ def _init_mysql_tables(cur, conn):
                 status VARCHAR(50) NOT NULL DEFAULT 'draft',
                 download_count INT DEFAULT 0,
                 is_deleted TINYINT DEFAULT 0,
+                calibration_due_date DATE DEFAULT NULL,
                 FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         """),
@@ -447,6 +469,7 @@ def _init_mysql_tables(cur, conn):
     _ensure_default_settings(cur, conn, db_type='mysql')
     _ensure_default_user(cur, "admin", "admin123", "admin", db_type='mysql')
     _ensure_default_user(cur, "user", "user123", "equipment_engineer", db_type='mysql')
+    _migrate_mysql_columns(cur)
 
 
 def _init_sqlite_tables(cur, conn):
@@ -488,6 +511,7 @@ def _init_sqlite_tables(cur, conn):
                 status TEXT NOT NULL DEFAULT 'draft',
                 download_count INTEGER DEFAULT 0,
                 is_deleted INTEGER DEFAULT 0,
+                calibration_due_date DATE DEFAULT NULL,
                 FOREIGN KEY (device_id) REFERENCES devices(id)
             )
         """),
@@ -660,6 +684,7 @@ def _migrate_sqlite_columns(cur):
         ("borrow_records", "actual_return_date",   "ALTER TABLE borrow_records ADD COLUMN actual_return_date DATE"),
         ("borrow_records", "remarks",              "ALTER TABLE borrow_records ADD COLUMN remarks TEXT"),
         ("borrow_records", "created_at",           "ALTER TABLE borrow_records ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+        ("documents",      "calibration_due_date", "ALTER TABLE documents ADD COLUMN calibration_due_date DATE DEFAULT NULL"),
     ]
     for table, col, ddl in migrations:
         try:

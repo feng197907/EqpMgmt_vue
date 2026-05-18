@@ -46,6 +46,10 @@ def upload_doc(device_id):
     if request.method == "POST":
         doc_type = request.form.get("doc_type")
         remarks = request.form.get("remarks", "").strip()
+        calibration_due_date = request.form.get("calibration_due_date", "").strip() or None
+        # 非校准记录类型时忽略该字段
+        if doc_type != "calibration":
+            calibration_due_date = None
         file = request.files.get("file")
         if doc_type not in DOC_TYPE_LABELS:
             flash("请选择正确的文档类型。", "warning")
@@ -72,8 +76,8 @@ def upload_doc(device_id):
         # 存储相对于项目根目录的相对路径，兼容云服务器部署
         relative_path = os.path.relpath(file_path, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         cur.execute(
-            "INSERT INTO documents (device_id, doc_type, doc_name, version, file_path, uploaded_by, remarks, status) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-            (device_id, doc_type, safe_name, version, relative_path, current_user.username, remarks, initial_status),
+            "INSERT INTO documents (device_id, doc_type, doc_name, version, file_path, uploaded_by, remarks, status, calibration_due_date) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            (device_id, doc_type, safe_name, version, relative_path, current_user.username, remarks, initial_status, calibration_due_date),
         )
         conn.commit()
         doc_id = cur.lastrowid

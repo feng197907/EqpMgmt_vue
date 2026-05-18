@@ -172,6 +172,14 @@
       </div>
 
       <div class="topbar-right">
+        {# 设备提醒铃铛 - 维护到期 + 校准到期 #}
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('dashboard.reminders') }}" class="topbar-icon-btn" aria-label="设备提醒" title="维护/校准到期提醒" id="topbarBellBtn">
+          <i data-lucide="bell"></i>
+          <span class="notification-dot" id="topbarBellDot" style="display:none;">0</span>
+        </a>
+        {% endif %}
+
         {# 密码重置请求提醒 - 对管理类角色显示 #}
         {% if current_user.is_authenticated and current_user.role in ['admin', 'qa_manager', 'production_supervisor'] %}
         <a href="{{ url_for('password.admin_password_resets') }}" class="topbar-icon-btn" aria-label="密码重置请求" title="密码重置请求 ({{ password_reset_count if password_reset_count else 0 }})">
@@ -445,6 +453,41 @@
       localStorage.setItem('maintenance_reminder_dismissed', new Date().toISOString());
       closeMaintenanceReminder();
     };
+  })();
+
+  // ========== 顶部铃铛数字 ==========
+  (function() {
+    var bellDot = document.getElementById('topbarBellDot');
+    if (!bellDot) return;
+
+    var count = 0;
+
+    // 获取维护逾期数
+    fetch('/api/dashboard/due-maintenance?days=7')
+      .then(function(resp) { return resp.json(); })
+      .then(function(data) {
+        count += (data.summary.overdue_count || 0) + (data.summary.due_today_count || 0);
+        updateBell();
+      })
+      .catch(function() {});
+
+    // 获取校准逾期数
+    fetch('/api/dashboard/calibration-overdue-count')
+      .then(function(resp) { return resp.json(); })
+      .then(function(data) {
+        count += (data.overdue_count || 0);
+        updateBell();
+      })
+      .catch(function() {});
+
+    function updateBell() {
+      if (count > 0) {
+        bellDot.textContent = count > 99 ? '99+' : count;
+        bellDot.style.display = '';
+      } else {
+        bellDot.style.display = 'none';
+      }
+    }
   })();
   </script>
   {% endif %}
