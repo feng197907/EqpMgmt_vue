@@ -291,6 +291,17 @@ def api_due_maintenance():
     reminders = build_due_maintenance_reminders(conn, days=days)
     conn.close()
 
+    # 按类型筛选
+    if maintenance_type:
+        reminders = [r for r in reminders if r.get("maintenance_type") == maintenance_type]
+
+    return jsonify({
+        "success": True,
+        "count": len(reminders),
+        "reminders": reminders,
+        "for_login_popup": for_login_popup,
+    })
+
 
 @dashboard_bp.route("/api/dashboard/calibration-overdue-count")
 @login_required
