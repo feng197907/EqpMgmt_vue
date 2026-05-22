@@ -25,6 +25,7 @@
 | **设备看板** | 状态统计与列表 | 可视化设备分布情况 |
 | **设备校准** | 校准计划与记录 | 确保设备精度合规 |
 | **设备维护** | 维护计划与执行 | 预防性维护管理 |
+| **备件管理** | 库存/入库/消耗/预警 | 备件全生命周期管理 |
 | **文档中心** | 上传/下载/版本控制 | 支持多版本文档管理 |
 | **借阅管理** | 借出/归还/审批 | 文档资产追踪 |
 | **审批流程** | 多级审批+电子签名 | 数字化审批体验 |
@@ -34,15 +35,17 @@
 
 系统内置 **7 种角色**，精细化权限控制：
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        角色权限矩阵                          │
-├──────────┬────────┬────────┬────────┬────────┬────────┬──────┤
-│ 管理员   │ 设备工程师│ 文档管理员 │ 质量工程师│ 部门经理│ 主管 │访客│
-├──────────┼────────┼────────┼────────┼────────┼────────┼──────┤
-│    ✅    │   ✅   │   ✅   │   ✅   │   ✅   │   ✅   │  ❌  │
-└──────────┴────────┴────────┴────────┴────────┴────────┴──────┘
-```
+| 角色 | 说明 | 核心权限 |
+|------|------|----------|
+| **管理员** (admin) | 系统最高权限 | 所有功能 |
+| **QA经理** (qa_manager) | 质量相关审批 | 文档审批、质量审批、报告查看 |
+| **设备工程师** (equipment_engineer) | 设备操作维护 | 设备操作、校准、维护 |
+| **验证工程师** (validation_engineer) | 验证文档管理 | IQ/OQ/PQ、文档审批 |
+| **计量工程师** (metrology_engineer) | 计量校准 | 设备校准、计量管理 |
+| **生产主管** (production_supervisor) | 生产审批 | 生产审批、文档审批、报告查看 |
+| **文档管理员** (archivist) | 文档归档 | 文档上传、归档管理 |
+
+> 💡 **审批权限说明**：拥有 `document_approval` 权限的角色（管理员、QA经理、验证工程师、生产主管）可处理审批待办。
 
 ### 📊 审计追踪
 
@@ -103,6 +106,9 @@ python app.py
 ### 设备详情
 ![设备详情](docs/screenshots/device-detail.png)
 
+### 备件管理
+![备件管理](docs/screenshots/spare-parts.png)
+
 ### 文档中心
 ![文档中心](docs/screenshots/document-center.png)
 
@@ -144,7 +150,6 @@ tail -f /data/EquipmentManagement/logs/error.log
 
 # 搜索错误
 grep -i "error\|exception" /data/EquipmentManagement/logs/app.log
-
 ```
 
 ### Linux 服务器部署
@@ -208,46 +213,76 @@ tail -f /var/log/webhook-deploy.log
 ```
 EquipmentManagement/
 ├── app.py                 # 应用入口
-├── config.py              # 配置文件
-├── database.py            # 数据库模型
+├── config.py              # 配置文件（角色、权限定义）
+├── database.py            # 数据库初始化与迁移
+├── extensions.py          # Flask 扩展初始化
 ├── requirements.txt       # Python 依赖
 │
-├── blueprints/            # 路由模块
-│   ├── auth.py           # 认证模块
+├── blueprints/           # 路由模块（Controller）
+│   ├── __init__.py
+│   ├── auth.py           # 认证模块（登录/注销）
 │   ├── devices.py        # 设备管理
+│   ├── maintenance.py    # 设备维护
+│   ├── spare_part.py     # 备件管理
 │   ├── documents.py      # 文档管理
+│   ├── approvals.py      # 审批流程
 │   ├── borrowing.py      # 借阅管理
-│   └── ...
+│   ├── dashboard.py      # 仪表盘/看板
+│   ├── esign.py         # 电子签名
+│   ├── users.py         # 用户管理
+│   ├── settings.py      # 系统设置
+│   ├── password.py      # 密码重置
+│   ├── search.py        # 全局搜索
+│   └── device_changes.py # 设备变更审批
 │
-├── models/                # 数据模型
-│   ├── device.py
-│   ├── document.py
-│   ├── borrowing.py
-│   └── ...
+├── models/               # 数据模型
+│   ├── __init__.py
+│   ├── user.py          # 用户模型
+│   ├── maintenance.py   # 维护计划/记录模型
+│   ├── spare_part.py    # 备件/入库/消耗/预警模型
+│   └── electronic_signature.py # 电子签名模型
 │
-├── templates/             # 前端模板
-│   ├── base.html
-│   ├── login.html
-│   └── ...
+├── templates/            # 前端模板（Jinja2）
+│   ├── base.html        # 基础模板
+│   ├── login.html      # 登录页
+│   ├── index.html      # 首页
+│   ├── device_*.html   # 设备相关页面
+│   ├── spare_part_*.html # 备件相关页面
+│   ├── documents.html  # 文档中心
+│   ├── approvals.html  # 审批待办
+│   ├── reminders.html   # 提醒中心
+│   └── components/     # 可复用组件
+│       └── esign_modal.html # 电子签名弹窗
 │
-├── static/                # 静态资源
-│   ├── css/
-│   ├── js/
-│   └── uploads/          # 上传文件
+├── static/              # 静态资源
+│   ├── css/            # 样式文件
+│   ├── js/             # JavaScript 文件
+│   └── uploads/        # 上传文件存储
 │
-├── scripts/               # 脚本工具
+├── utils/               # 工具函数
+│   ├── decorators.py   # 权限装饰器
+│   ├── audit.py        # 审计日志
+│   ├── file_utils.py   # 文件处理
+│   └── db_utils.py    # 数据库工具
+│
+├── scripts/             # 脚本工具
 │   ├── webhook_server.py  # Webhook 服务
 │   └── ...
 │
-├── migrate/               # 迁移脚本
+├── migrate/             # 数据库迁移脚本
 │   ├── quick_migrate.sh
 │   └── ...
 │
-├── docs/                  # 文档
+├── docs/                # 文档
 │   ├── 使用手册.md
-│   └── screenshots/      # 截图目录
+│   └── screenshots/    # 截图目录
 │
-└── tests/                 # 测试文件
+├── tests/               # 测试文件
+│   ├── test_*.py
+│   └── ...
+│
+└── deploy/              # 部署配置
+    └── *.service       # systemd 服务文件
 ```
 
 ---
@@ -256,7 +291,7 @@ EquipmentManagement/
 
 ### 默认 SQLite（开箱即用）
 
-无需任何配置，直接启动即可。
+无需任何配置，直接启动即可。数据文件：`dms.db`
 
 ### 可选 MySQL
 
@@ -264,9 +299,37 @@ EquipmentManagement/
 # 1. 安装依赖
 pip install pymysql cryptography
 
-# 2. 修改 database.py 中的连接配置
+# 2. 修改 config.py 中的数据库配置
+# 或在服务器上创建 .env 文件配置数据库连接
 ```
-服务器上部署时，把 .env.example 复制为 .env，再填上服务器的真实配置即可
+
+服务器上部署时，把 `.env.example` 复制为 `.env`，再填上服务器的真实配置即可。
+
+---
+
+## 备件管理模块
+
+### 功能概览
+
+| 功能 | 说明 |
+|------|------|
+| **备件库存** | 查看备件库存，支持按分类/名称搜索 |
+| **入库管理** | 记录备件入库，自动更新库存和加权平均价 |
+| **消耗记录** | 维修/维护时消耗备件，自动扣减库存 |
+| **库存预警** | 低库存/缺货/超量/呆滞 自动预警 |
+| **成本统计** | 备件消耗成本分析，按设备/类型统计 |
+
+### 消耗记录关联
+
+备件消耗可关联至：
+- **维护记录** (`maintenance_record`)
+- **维修记录** (`repair_record`)
+
+在提交维护/维修记录时，可选择消耗的备件，系统自动：
+1. 扣减备件库存
+2. 记录消耗明细（数量、单价、总价）
+3. 触发库存预警检查
+
 ---
 
 ## 常见问题
@@ -277,6 +340,7 @@ pip install pymysql cryptography
 | 上传失败 | 确认文件类型（pdf/doc/docx/xls/xlsx/jpg/png） |
 | 服务启动失败 | 检查端口占用 `lsof -i:5000` |
 | 数据库异常 | 删除 `dms.db` 重启自动重建 |
+| 备件消耗不显示 | 检查 `spare_part_consumptions` 表是否有数据 |
 
 ---
 
