@@ -175,6 +175,39 @@ def delete_plan(device_id, plan_id):
     return jsonify({"message": "维护计划已删除"})
 
 
+@maintenance_bp.route("/plan/<int:plan_id>/close", methods=["POST"])
+@permission_required("device_maintenance")
+def close_plan(device_id, plan_id):
+    """关闭维护计划（仅逾期计划可关闭）"""
+    data = request.get_json(silent=True) or {}
+    close_reason = data.get("close_reason", "").strip()
+
+    plan = MaintenancePlan.get_by_id(plan_id)
+    if plan is None or plan.device_id != device_id:
+        return jsonify({"error": "维护计划不存在"}), 404
+
+    if not plan.is_active:
+        return jsonify({"error": "维护计划已删除，无法关闭"}), 400
+
+    if plan.is_closed:
+        return jsonify({"error": "维护计划已关闭"}), 400
+
+    if not plan.is_overdue:
+        return jsonify({"error": "仅逾期的维护计划可以关闭"}), 400
+
+    if not close_reason:
+        return jsonify({"error": "请填写关闭原因"}), 400
+
+    plan.close(current_user.username, close_reason)
+
+    log_action(
+        current_user.username, "close_maintenance_plan", "maintenance_plan", plan_id,
+        f"关闭逾期维护计划：{plan.maintenance_type_label}，原因：{close_reason}",
+    )
+
+    return jsonify({"message": "维护计划已关闭"})
+
+
 @maintenance_bp.route("/plan/<int:plan_id>/record", methods=["GET"])
 @login_required
 def new_record_form(device_id, plan_id):

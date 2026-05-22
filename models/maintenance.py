@@ -23,6 +23,7 @@ class MaintenancePlan:
 
     def __init__(self, id=None, device_id=None, maintenance_type=None,
                  interval_days=None, next_due_date=None, is_active=1,
+                 is_closed=0, closed_at=None, closed_by=None, close_reason=None,
                  created_by=None, created_at=None, updated_at=None):
         self.id = id
         self.device_id = device_id
@@ -30,6 +31,10 @@ class MaintenancePlan:
         self.interval_days = interval_days
         self.next_due_date = next_due_date
         self.is_active = is_active
+        self.is_closed = is_closed
+        self.closed_at = closed_at
+        self.closed_by = closed_by
+        self.close_reason = close_reason
         self.created_by = created_by
         self.created_at = created_at
         self.updated_at = updated_at
@@ -40,11 +45,26 @@ class MaintenancePlan:
         return MAINTENANCE_TYPE_LABELS.get(self.maintenance_type, self.maintenance_type)
 
     @property
-    def result_label(self):
-        """获取维护结果中文标签，兼容旧数据中直接存储中文值的情况"""
-        if not self.result:
-            return "-"
-        return MAINTENANCE_RESULT_LABELS.get(self.result, self.result)
+    def status_label(self):
+        """获取计划状态中文标签"""
+        if self.is_closed:
+            return "已关闭"
+        if not self.is_active:
+            return "已删除"
+        if self.is_overdue:
+            return "已逾期"
+        return "正常"
+
+    @property
+    def status_class(self):
+        """获取计划状态对应的 CSS 样式类"""
+        if self.is_closed:
+            return "secondary"
+        if not self.is_active:
+            return "muted"
+        if self.is_overdue:
+            return "danger"
+        return "success"
 
     @property
     def is_overdue(self):
@@ -91,20 +111,25 @@ class MaintenancePlan:
         return MaintenancePlan(**dict(row))
 
     @staticmethod
-    def get_by_device(device_id, active_only=True):
-        """获取设备的维护计划列表"""
+    def get_by_device(device_id, active_only=True, include_closed=False):
+        """获取设备的维护计划列表
+
+        Args:
+            active_only: 是否只返回 is_active=1 的记录
+            include_closed: 是否包含已关闭的计划
+        """
         conn = get_db()
         cur = conn.cursor()
+        where = "device_id = %s"
+        params = [device_id]
         if active_only:
-            cur.execute(
-                "SELECT * FROM maintenance_plan WHERE device_id = %s AND is_active = 1",
-                (device_id,)
-            )
-        else:
-            cur.execute(
-                "SELECT * FROM maintenance_plan WHERE device_id = %s",
-                (device_id,)
-            )
+            where += " AND is_active = 1"
+        if not include_closed:
+            where += " AND is_closed = 0"
+        cur.execute(
+            f"SELECT * FROM maintenance_plan WHERE {where} ORDER BY next_due_date ASC",
+            params
+        )
         rows = cur.fetchall()
         conn.close()
         return [MaintenancePlan(**dict(row)) for row in rows]
@@ -132,24 +157,37 @@ class MaintenancePlan:
             cur.execute(
                 """INSERT INTO maintenance_plan
                    (device_id, maintenance_type, interval_days, next_due_date,
-                    is_active, created_by, created_at, updated_at)
-                   VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW())""",
+                    is_active, is_closed, closed_at, closed_by, close_reason,
+                    created_by, created_at, updated_at)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())""",
                 (self.device_id, self.maintenance_type, self.interval_days,
-                 self.next_due_date, self.is_active, self.created_by)
+                 self.next_due_date, self.is_active, self.is_closed,
+                 self.closed_at, self.closed_by, self.close_reason,
+                 self.created_by)
             )
             self.id = cur.lastrowid
         else:
             cur.execute(
                 """UPDATE maintenance_plan SET
                    maintenance_type = %s, interval_days = %s, next_due_date = %s,
-                   is_active = %s, updated_at = NOW()
+                   is_active = %s, is_closed = %s, closed_at = %s,
+                   closed_by = %s, close_reason = %s, updated_at = NOW()
                    WHERE id = %s""",
                 (self.maintenance_type, self.interval_days, self.next_due_date,
-                 self.is_active, self.id)
+                 self.is_active, self.is_closed, self.closed_at,
+                 self.closed_by, self.close_reason, self.id)
             )
         conn.commit()
         conn.close()
         return self
+
+    def close(self, closed_by, close_reason=""):
+        """关闭维护计划（逾期计划可手动关闭）"""
+        self.is_closed = 1
+        self.closed_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.closed_by = closed_by
+        self.close_reason = close_reason
+        self.save()
 
     def delete(self):
         """软删除维护计划"""

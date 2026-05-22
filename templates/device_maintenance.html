@@ -113,6 +113,9 @@
           </td>
           <td class="d-flex gap-2">
             <a class="btn btn-sm btn-outline-primary" href="{{ url_for('maintenance.new_record_form', device_id=device.id, plan_id=item.plan.id) }}">记录维护</a>
+            {% if item.urgency == 'danger' and current_user.is_authenticated and current_user.has_permission('device_maintenance') %}
+            <button class="btn btn-sm btn-outline-danger" onclick="showClosePlanModal({{ item.plan.id }}, '{{ item.plan.maintenance_type_label }}')">关闭计划</button>
+            {% endif %}
             <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('maintenance.maintenance_history', device_id=device.id) }}">查看历史</a>
           </td>
         </tr>
@@ -185,6 +188,32 @@
   </div>
 </div>
 
+{# 关闭维护计划弹窗 #}
+<div class="modal-overlay" id="closePlanModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1050;">
+  <div class="add-plan-modal" style="max-width: 520px; width: 95%; margin: 0; background: #fff; border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,0.08);">
+    <div class="modal-header">
+      <h3 class="modal-title">关闭维护计划</h3>
+      <button class="modal-close" onclick="hideClosePlanModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="text-muted mb-3">关闭后该计划将不再提醒，仅逾期的计划可以关闭。</p>
+      <div class="form-group">
+        <label class="form-label">维护类型</label>
+        <input type="text" class="form-control" id="closePlanType" readonly style="background: #f8f9fa;">
+      </div>
+      <div class="form-group">
+        <label class="form-label">关闭原因 <span class="text-danger">*</span></label>
+        <textarea class="form-control" id="closePlanReason" rows="3" placeholder="请填写关闭原因（如：设备已报废、计划已合并等）" required></textarea>
+        <div id="closePlanError" class="alert alert-danger mt-2" style="display:none;font-size:0.85rem;"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="hideClosePlanModal()">取消</button>
+      <button type="button" class="btn btn-danger" id="closePlanSubmitBtn" onclick="submitClosePlan()">确认关闭</button>
+    </div>
+  </div>
+</div>
+
 <script>
 function showAddPlanModal() {
   const overlay = document.getElementById('addPlanModal');
@@ -198,6 +227,74 @@ function hideAddPlanModal() {
   const overlay = document.getElementById('addPlanModal');
   overlay.style.display = 'none';
   document.body.style.overflow = '';
+}
+
+// 关闭维护计划弹窗
+var _closePlanId = null;
+
+function showClosePlanModal(planId, planType) {
+  _closePlanId = planId;
+  document.getElementById('closePlanType').value = planType;
+  document.getElementById('closePlanReason').value = '';
+  document.getElementById('closePlanError').style.display = 'none';
+  const overlay = document.getElementById('closePlanModal');
+  overlay.style.display = 'flex';
+  overlay.style.alignItems = 'center';
+  overlay.style.justifyContent = 'center';
+  document.body.style.overflow = 'hidden';
+}
+
+function hideClosePlanModal() {
+  const overlay = document.getElementById('closePlanModal');
+  overlay.style.display = 'none';
+  document.body.style.overflow = '';
+  _closePlanId = null;
+}
+
+function submitClosePlan() {
+  var reason = document.getElementById('closePlanReason').value.trim();
+  var errorDiv = document.getElementById('closePlanError');
+  var submitBtn = document.getElementById('closePlanSubmitBtn');
+
+  if (!reason) {
+    errorDiv.textContent = '请填写关闭原因。';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  if (!_closePlanId) {
+    errorDiv.textContent = '计划ID无效，请刷新页面重试。';
+    errorDiv.style.display = 'block';
+    return;
+  }
+
+  errorDiv.style.display = 'none';
+  submitBtn.disabled = true;
+  submitBtn.textContent = '提交中...';
+
+  fetch('/device/' + {{ device.id }} + '/maintenance/plan/' + _closePlanId + '/close', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({close_reason: reason})
+  })
+  .then(function(response) {
+    return response.json().then(function(data) {
+      if (!response.ok) {
+        throw new Error(data.error || '关闭失败（状态 ' + response.status + '）');
+      }
+      return data;
+    });
+  })
+  .then(function(data) {
+    alert(data.message || '维护计划已关闭');
+    hideClosePlanModal();
+    location.reload();
+  })
+  .catch(function(err) {
+    errorDiv.textContent = err.message || '关闭失败，请重试。';
+    errorDiv.style.display = 'block';
+    submitBtn.disabled = false;
+    submitBtn.textContent = '确认关闭';
+  });
 }
 
 function updateIntervalDays() {
