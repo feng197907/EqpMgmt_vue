@@ -31,13 +31,24 @@ echo ""
 # 0. 检查 Python 版本
 log_info "[0/5] 检查 Python 版本..."
 
-# 优先使用已知的 Python 3.11 路径
-if [ -x "/usr/local/python3.11/bin/python3.11" ]; then
-    PYTHON_BIN="/usr/local/python3.11/bin/python3.11"
-elif [ -x "/usr/bin/python3.11" ]; then
-    PYTHON_BIN="/usr/bin/python3.11"
-else
-    PYTHON_BIN=$(which python3.11 || which python3 || which python)
+# 硬编码 Python 3.11 路径（根据生产服务器实际路径）
+PYTHON_CANDIDATES=(
+    "/usr/local/python3.11/bin/python3.11"
+    "/usr/bin/python3.11"
+    "/usr/local/bin/python3.11"
+)
+
+PYTHON_BIN=""
+for candidate in "${PYTHON_CANDIDATES[@]}"; do
+    if [ -x "$candidate" ]; then
+        PYTHON_BIN="$candidate"
+        break
+    fi
+done
+
+# 如果硬编码路径都找不到，尝试 which
+if [ -z "$PYTHON_BIN" ]; then
+    PYTHON_BIN=$(which python3.11 2>/dev/null || which python3 2>/dev/null || which python 2>/dev/null)
 fi
 
 if [ -z "$PYTHON_BIN" ] || [ ! -x "$PYTHON_BIN" ]; then
@@ -77,10 +88,26 @@ log_info "[4/5] 启动服务..."
 export FLASK_APP=app.py
 export PYTHONUNBUFFERED=1
 
-nohup $PYTHON_BIN app.py > app.log 2>&1 &
+# 使用完整路径启动，避免环境变量问题
+log_info "启动命令: $PYTHON_BIN app.py"
+nohup $PYTHON_BIN "$PROJECT_DIR/app.py" > "$PROJECT_DIR/app.log" 2>&1 &
 SERVER_PID=$!
-echo $SERVER_PID > app.pid
+echo $SERVER_PID > "$PROJECT_DIR/app.pid"
 log_info "服务已启动，PID: $SERVER_PID"
+
+# 验证进程确实用正确的 Python 运行
+sleep 1
+if ps -p $SERVER_PID > /dev/null 2>&1; then
+    ACTUAL_PYTHON=$(ps -p $SERVER_PID -o args= | head -1 | cut -d' ' -f1)
+    log_info "实际运行: $ACTUAL_PYTHON"
+    if [[ "$ACTUAL_PYTHON" != *"python3.11"* ]] && [[ "$ACTUAL_PYTHON" != *"python3"* ]]; then
+        log_warning "警告：进程可能未使用 Python 3.11！"
+    fi
+else
+    log_error "进程启动失败！"
+    tail -20 "$PROJECT_DIR/app.log"
+    exit 1
+fi
 
 # 5. 健康检查
 log_info "[5/5] 健康检查（等待服务启动）..."
