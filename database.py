@@ -15,28 +15,30 @@ except ImportError:
 # ============================================================
 _DB_TYPE = os.environ.get('DB_TYPE', '').lower().strip()
 
-# 尝试验证 MySQL 是否真的可用
 _MYSQL_AVAILABLE = False
 _pymysql = None
-try:
-    import pymysql as _pymysql
-    _pymysql.install_as_MySQLdb()
-    from MySQLdb import Connection as _MySQLdbConn
-    # 尝试建立连接验证是否可用
-    _test_conn = _pymysql.connect(
-        host=os.environ.get('MYSQL_HOST', 'localhost'),
-        port=int(os.environ.get('MYSQL_PORT', 3306)),
-        user=os.environ.get('MYSQL_USER', 'root'),
-        password=os.environ.get('MYSQL_PASSWORD', ''),
-        database=os.environ.get('MYSQL_DATABASE', 'dms_db'),
-        charset='utf8mb4',
-        connect_timeout=3,
-    )
-    _test_conn.close()
-    _MYSQL_AVAILABLE = True
-except Exception:
-    _MYSQL_AVAILABLE = False
-    _pymysql = None
+
+# 明确指定 SQLite 时，跳过 MySQL 探测，减少容器启动延迟
+if _DB_TYPE != 'sqlite':
+    try:
+        import pymysql as _pymysql
+        _pymysql.install_as_MySQLdb()
+        from MySQLdb import Connection as _MySQLdbConn
+        # 尝试建立连接验证是否可用
+        _test_conn = _pymysql.connect(
+            host=os.environ.get('MYSQL_HOST', 'localhost'),
+            port=int(os.environ.get('MYSQL_PORT', 3306)),
+            user=os.environ.get('MYSQL_USER', 'root'),
+            password=os.environ.get('MYSQL_PASSWORD', ''),
+            database=os.environ.get('MYSQL_DATABASE', 'dms_db'),
+            charset='utf8mb4',
+            connect_timeout=3,
+        )
+        _test_conn.close()
+        _MYSQL_AVAILABLE = True
+    except Exception:
+        _MYSQL_AVAILABLE = False
+        _pymysql = None
 
 # 最终 DB_TYPE 决策
 if _DB_TYPE == 'mysql' and not _MYSQL_AVAILABLE:
@@ -65,7 +67,7 @@ else:
 
 # SQLite 数据库路径
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, 'equipment.db')
+DB_PATH = os.environ.get('DB_PATH', os.path.join(BASE_DIR, 'equipment.db'))
 
 # MySQL 配置
 MYSQL_CONFIG = {

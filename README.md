@@ -94,6 +94,24 @@ pip install -r requirements.txt
 python app.py
 ```
 
+### Docker Compose 一键启动
+
+如果你想让别人 3 分钟内看到界面，直接用 Docker Compose：
+
+```bash
+docker compose up --build -d
+```
+
+启动完成后访问 `http://localhost:5000`。
+
+停止服务：
+
+```bash
+docker compose down
+```
+
+默认使用 SQLite，数据会落在本地 `data/` 目录里，上传文件在 `uploads/`，日志在 `logs/`。
+
 ### 访问系统
 
 > 🌐 **http://127.0.0.1:5000**
