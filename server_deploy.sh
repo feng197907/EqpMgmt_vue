@@ -56,21 +56,31 @@ fi
 log_info "使用 Python: $PYTHON_BIN"
 $PYTHON_BIN --version
 
-# 检查 gunicorn
-GUNICORN_BIN=$(which gunicorn 2>/dev/null || echo "$PROJECT_DIR/venv/bin/gunicorn")
-if [ ! -x "$GUNICORN_BIN" ]; then
-    log_warning "gunicorn 未找到，尝试安装..."
-    $PYTHON_BIN -m pip install gunicorn --quiet --disable-pip-version-check 2>&1 | grep -v "WARNING:" || true
-    GUNICORN_BIN=$(which gunicorn 2>/dev/null || echo "")
-fi
+# 检查 gunicorn（可选，如果不可用则使用 python 直接运行）
+GUNICORN_BIN=""
+USE_GUNICORN=false
 
-if [ -z "$GUNICORN_BIN" ] || [ ! -x "$GUNICORN_BIN" ]; then
-    log_error "gunicorn 安装失败！"
-    exit 1
+# 尝试查找 gunicorn
+if command -v gunicorn &> /dev/null; then
+    GUNICORN_BIN=$(which gunicorn)
+    # 验证 gunicorn 是否能正常运行（检查 SSL 模块）
+    if $GUNICORN_BIN --version &> /dev/null; then
+        USE_GUNICORN=true
+        log_info "使用 gunicorn: $GUNICORN_BIN"
+    else
+        log_warning "gunicorn 存在但无法运行（可能缺少 SSL 模块），将使用 python 直接运行"
+    fi
+elif $PYTHON_BIN -m pip show gunicorn &> /dev/null; then
+    GUNICORN_BIN="$PYTHON_BIN -m gunicorn"
+    if $GUNICORN_BIN --version &> /dev/null; then
+        USE_GUNICORN=true
+        log_info "使用 gunicorn (module): $GUNICORN_BIN"
+    else
+        log_warning "gunicorn 模块存在但无法运行，将使用 python 直接运行"
+    fi
+else
+    log_warning "gunicorn 未安装，将使用 python 直接运行"
 fi
-
-log_info "使用 gunicorn: $GUNICORN_BIN"
-$GUNICORN_BIN --version
 
 # 1. 拉取最新代码
 log_info "[1/6] 拉取最新代码..."
@@ -111,30 +121,44 @@ if pgrep -f "gunicorn.*5000" > /dev/null 2>&1; then
     sleep 2
 fi
 
-# 5. 启动 gunicorn
-log_info "[5/6] 启动 gunicorn..."
+# 5. 启动服务
+log_info "[5/6] 启动服务..."
 export PYTHONUNBUFFERED=1
 
-# gunicorn 启动参数
-WORKERS=2
-BIND="0.0.0.0:5000"
-PID_FILE="$PROJECT_DIR/gunicorn.pid"
-ACCESS_LOG="$PROJECT_DIR/logs/gunicorn_access.log"
-ERROR_LOG="$PROJECT_DIR/logs/gunicorn_error.log"
-
-# 确保日志目录存在
 mkdir -p "$PROJECT_DIR/logs"
 
-# 使用 gunicorn 以 daemon 模式启动
-$GUNICORN_BIN \
-    --workers $WORKERS \
-    --bind $BIND \
-    --pid $PID_FILE \
-    --access-logfile $ACCESS_LOG \
-    --error-logfile $ERROR_LOG \
-    --log-level info \
-    --daemon \
-    "app:create_app()"
+if [ "$USE_GUNICORN" = true ]; then
+    # 使用 gunicorn 启动
+    log_info "使用 gunicorn 启动..."
+    WORKERS=2
+    BIND="0.0.0.0:5000"
+    PID_FILE="$PROJECT_DIR/gunicorn.pid"
+    ACCESS_LOG="$PROJECT_DIR/logs/gunicorn_access.log"
+    ERROR_LOG="$PROJECT_DIR/logs/gunicorn_error.log"
+
+    $GUNICORN_BIN \
+        --workers $WORKERS \
+        --bind $BIND \
+        --pid $PID_FILE \
+        --access-logfile $ACCESS_LOG \
+        --error-logfile $ERROR_LOG \
+        --log-level info \
+        --daemon \
+        "app:create_app()"
+
+    SERVER_PID=$(cat "$PID_FILE" 2>/dev/null || echo "")
+    log_info "gunicorn 已启动，PID: $SERVER_PID"
+else
+    # 使用 python 直接运行
+    log_info "使用 python 直接运行..."
+    PID_FILE="$PROJECT_DIR/app.pid"
+    
+    # 使用 setsid 创建新会话，确保进程不因终端关闭而退出
+    setsid nohup $PYTHON_BIN "$PROJECT_DIR/app.py" > "$PROJECT_DIR/app.log" 2>&1 &
+    SERVER_PID=$!
+    echo $SERVER_PID > "$PID_FILE"
+    log_info "服务已启动，PID: $SERVER_PID"
+fi
 
 log_info "gunicorn 已启动（后台模式）"
 sleep 3
@@ -148,13 +172,26 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
     sleep 1
     RETRY_COUNT=$((RETRY_COUNT + 1))
     
-    # 检查 PID 文件对应的进程是否存在
+    # 检查进程是否存在
     if [ -f "$PID_FILE" ]; then
         PID=$(cat "$PID_FILE")
         if ! ps -p $PID > /dev/null 2>&1; then
-            log_error "gunicorn 进程已退出！查看日志："
+            log_error "进程已退出！查看日志："
             echo "----------------------------------------------"
-            tail -30 "$ERROR_LOG" 2>/dev/null || echo "  日志文件不存在"
+            if [ "$USE_GUNICORN" = true ]; then
+                tail -30 "$ERROR_LOG" 2>/dev/null || echo "  日志文件不存在"
+            else
+                tail -30 "$PROJECT_DIR/app.log" 2>/dev/null || echo "  日志文件不存在"
+            fi
+            echo "----------------------------------------------"
+            exit 1
+        fi
+    elif [ "$USE_GUNICORN" = false ]; then
+        # python 直接运行时，检查进程是否存在
+        if ! ps -p $SERVER_PID > /dev/null 2>&1 2>/dev/null; then
+            log_error "Python 进程已退出！查看日志："
+            echo "----------------------------------------------"
+            tail -30 "$PROJECT_DIR/app.log"
             echo "----------------------------------------------"
             exit 1
         fi
@@ -171,15 +208,23 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
             echo "=============================================="
             echo ""
             echo "  访问地址: http://82.157.4.72:5000"
-            echo "  进程 PID: $(cat $PID_FILE 2>/dev/null || echo '未知')"
-            echo "  日志文件:"
-            echo "    - 访问日志: $ACCESS_LOG"
-            echo "    - 错误日志: $ERROR_LOG"
-            echo "    - 应用日志: $PROJECT_DIR/logs/error.log"
+            
+            if [ "$USE_GUNICORN" = true ]; then
+                echo "  服务类型: gunicorn"
+                echo "  进程 PID: $(cat $PID_FILE 2>/dev/null || echo '未知')"
+                echo "  日志文件:"
+                echo "    - 访问日志: $ACCESS_LOG"
+                echo "    - 错误日志: $ERROR_LOG"
+            else
+                echo "  服务类型: python (直接运行)"
+                echo "  进程 PID: $SERVER_PID"
+                echo "  日志文件:"
+                echo "    - $PROJECT_DIR/app.log"
+            fi
+            echo "    - $PROJECT_DIR/logs/error.log"
             echo ""
             echo "  查看实时日志："
             echo "    tail -f $PROJECT_DIR/logs/error.log"
-            echo "    tail -f $ERROR_LOG"
             echo ""
             exit 0
         fi
@@ -197,17 +242,25 @@ echo "  调试信息"
 echo "=============================================="
 echo ""
 echo "1. 进程状态："
-ps aux | grep gunicorn | grep -v grep || echo "  无 gunicorn 进程"
+if [ "$USE_GUNICORN" = true ]; then
+    ps aux | grep gunicorn | grep -v grep || echo "  无 gunicorn 进程"
+else
+    ps aux | grep "python.*app.py" | grep -v grep || echo "  无 python 进程"
+fi
 echo ""
 echo "2. 端口监听状态："
 ss -tlnp | grep ':5000' || echo "  端口 5000 未监听"
 echo ""
-echo "3. gunicorn 错误日志（最后 30 行）："
+echo "3. 应用日志（最后 30 行）："
 echo "----------------------------------------------"
-tail -30 "$ERROR_LOG" 2>/dev/null || echo "  日志文件不存在"
+if [ "$USE_GUNICORN" = true ]; then
+    tail -30 "$ERROR_LOG" 2>/dev/null || echo "  日志文件不存在"
+else
+    tail -30 "$PROJECT_DIR/app.log" 2>/dev/null || echo "  日志文件不存在"
+fi
 echo "----------------------------------------------"
 echo ""
-echo "4. 应用错误日志（最后 20 行）："
+echo "4. 错误日志（最后 20 行）："
 echo "----------------------------------------------"
 tail -20 "$PROJECT_DIR/logs/error.log" 2>/dev/null || echo "  日志文件不存在"
 echo "----------------------------------------------"
