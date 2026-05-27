@@ -114,44 +114,6 @@ docker compose down
 
 ### Docker 下切换 MySQL
 
-如果你本地或服务器已经有 MySQL，也可以让 Docker Compose 直接连 MySQL。把 `docker-compose.yml` 里的环境变量改成下面这样：
-
-```yaml
-environment:
-    DB_TYPE: mysql
-    MYSQL_HOST: mysql
-    MYSQL_PORT: 3306
-    MYSQL_USER: dms_user
-    MYSQL_PASSWORD: your_password
-    MYSQL_DATABASE: dms_db
-    SECRET_KEY: change-me-in-production
-    PORT: 5000
-```
-
-如果你希望 MySQL 也由 Compose 一起启动，可以额外加一个 `mysql` 服务：
-
-```yaml
-services:
-    mysql:
-        image: mysql:8.0
-        container_name: equipment-mysql
-        environment:
-            MYSQL_ROOT_PASSWORD: root_password
-            MYSQL_DATABASE: dms_db
-            MYSQL_USER: dms_user
-            MYSQL_PASSWORD: your_password
-        command: --default-authentication-plugin=mysql_native_password
-        ports:
-            - "3306:3306"
-        volumes:
-            - mysql-data:/var/lib/mysql
-        restart: unless-stopped
-
-volumes:
-    mysql-data:
-```
-
-这时应用容器和 MySQL 容器都启动后，再访问 `http://localhost:5000`。
 
 推荐把密码改成 `.env` 变量，不要明文写在 Compose 文件中：
 
@@ -159,13 +121,19 @@ volumes:
 cp .env.mysql.example .env
 # 编辑 .env，填入真实密码
 
-docker compose -f docker-compose-mysql.yml -f docker-compose-mysql.override.yml up --build -d
-```
+#!/bin/bash
 
-停止服务：
-
-```bash
+echo "🚀 停止服务..."
 docker compose -f docker-compose-mysql.yml -f docker-compose-mysql.override.yml down
+
+echo "📦 拉取最新代码..."
+git pull origin main
+
+echo "🔨 重新构建并启动..."
+docker compose -f docker-compose-mysql.yml -f docker-compose-mysql.override.yml up --build -d
+
+echo "📜 查看日志..."
+docker compose logs -f
 ```
 
 ### 访问系统
