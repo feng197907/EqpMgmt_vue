@@ -42,9 +42,11 @@ services:
       SECRET_KEY: change-me-in-production
       PORT: 5000
     volumes:
-      - ./uploads:/app/uploads
-      - ./logs:/app/logs
+      - equipment-uploads:/app/uploads
+      - equipment-logs:/app/logs
     restart: unless-stopped
 
 volumes:
   mysql-data:
+  equipment-uploads:
+  equipment-logs:

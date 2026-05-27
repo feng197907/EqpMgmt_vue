@@ -115,6 +115,7 @@ docker compose down
 ```
 
 默认使用 SQLite，数据会落在本地 `data/` 目录里，上传文件在 `uploads/`，日志在 `logs/`。
+现在 `uploads` 和 `logs` 已改为 Docker named volumes，容器重建不会丢失 `/app/uploads/device_1` 和 `/app/logs/app.log`。
 
 ### Docker 下切换 MySQL
 
@@ -139,6 +140,9 @@ docker compose -f docker-compose-mysql.yml -f docker-compose-mysql.override.yml 
 
 echo "📜 查看日志..."
 docker compose logs -f
+
+echo "📜 进入项目容器..."
+docker exec -it equipment-management /bin/bash
 ```
 
 ### 访问系统
