@@ -3,7 +3,7 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
   <div>
     <h3 class="mb-1">提醒中心</h3>
-    <div class="text-muted">校准文档到期提醒{% if borrowing_enabled %} · 待审批与借阅状态概览{% endif %}</div>
+    <div class="text-muted">校准文档 · 维护计划到期提醒{% if borrowing_enabled %} · 待审批与借阅状态概览{% endif %}</div>
   </div>
   <div class="btn-group">
     <a class="btn btn-outline-primary" href="{{ url_for('dashboard.user_stories') }}">用户故事中心</a>
@@ -13,7 +13,7 @@
 
 {# 概览卡片 #}
 <div class="row g-3 mb-4">
-  <div class="col-md-3">
+  <div class="col-6 col-md-3">
     <div class="card shadow-sm h-100">
       <div class="card-body">
         <div class="text-muted small">待审批</div>
@@ -22,7 +22,7 @@
     </div>
   </div>
   {% if borrowing_enabled %}
-  <div class="col-md-3">
+  <div class="col-6 col-md-3">
     <div class="card shadow-sm h-100">
       <div class="card-body">
         <div class="text-muted small">借阅中</div>
@@ -31,19 +31,21 @@
     </div>
   </div>
   {% endif %}
-  <div class="col-md-3">
+  <div class="col-6 col-md-3">
     <div class="card shadow-sm h-100">
       <div class="card-body">
-        <div class="text-muted small">已逾期</div>
-        <div class="fs-3 fw-bold text-danger">{{ severity_counts.danger }}</div>
+        <div class="text-muted small">校准已逾期</div>
+        <div class="fs-3 fw-bold {% if severity_counts.danger > 0 %}text-danger{% endif %}">{{ severity_counts.danger }}</div>
       </div>
     </div>
   </div>
-  <div class="col-md-3">
+  <div class="col-6 col-md-3">
     <div class="card shadow-sm h-100">
       <div class="card-body">
-        <div class="text-muted small">即将到期 / 需关注</div>
-        <div class="fs-3 fw-bold">{{ severity_counts.warning + severity_counts.info }}</div>
+        <div class="text-muted small">维护逾期 / 今日到期</div>
+        <div class="fs-3 fw-bold {% if (maintenance_summary.overdue_count + maintenance_summary.due_today_count) > 0 %}text-danger{% endif %}">
+          {{ maintenance_summary.overdue_count + maintenance_summary.due_today_count }}
+        </div>
       </div>
     </div>
   </div>
@@ -172,4 +174,72 @@
     </table>
   </div>
 </div>
+
+{# ===== 维护计划到期提醒 ===== #}
+<div class="card shadow-sm mt-4">
+  <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <div class="d-flex align-items-center gap-2">
+      <span>维护计划提醒</span>
+      <span class="badge badge-secondary">{{ maintenance_reminders|length }}</span>
+      {% if maintenance_summary.overdue_count > 0 %}
+        <span class="badge badge-danger">{{ maintenance_summary.overdue_count }} 逾期</span>
+      {% endif %}
+      {% if maintenance_summary.due_today_count > 0 %}
+        <span class="badge badge-warning">{{ maintenance_summary.due_today_count }} 今日到期</span>
+      {% endif %}
+    </div>
+    <a href="{{ url_for('dashboard.maintenance_all') }}" class="btn btn-sm btn-outline-primary">查看全部维护计划</a>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>设备编码</th>
+          <th>设备名称</th>
+          <th>维护类型</th>
+          <th>计划日期</th>
+          <th>状态</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in maintenance_reminders %}
+        <tr>
+          <td><span class="font-monospace">{{ item.device_code }}</span></td>
+          <td>{{ item.device_name }}</td>
+          <td>{{ item.maintenance_type_label or item.maintenance_type }}</td>
+          <td>
+            {% if item.overdue_days < 0 %}
+              <span class="text-danger fw-bold">{{ item.due_date_str }}</span>
+            {% elif item.due_date_str == today_str %}
+              <span class="text-warning fw-bold">{{ item.due_date_str }}</span>
+            {% else %}
+              <span>{{ item.due_date_str }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if item.overdue_days < 0 %}
+              <span class="badge badge-danger">已逾期 {{ item.overdue_days|abs }} 天</span>
+            {% elif item.due_date_str == today_str %}
+              <span class="badge badge-warning">今日到期</span>
+            {% else %}
+              <span class="badge badge-info">7日内到期</span>
+            {% endif %}
+          </td>
+          <td>
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('devices.device_detail', device_id=item.device_id) }}">设备详情</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-center text-muted py-4">
+          <div>暂无维护到期提醒</div>
+          <div class="small">7天内无需维护的设备不显示</div>
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
 {% endblock %}

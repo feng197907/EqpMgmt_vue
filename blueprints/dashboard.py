@@ -10,7 +10,7 @@ from database import get_db, get_system_setting
 from utils.audit import log_action
 from utils.decorators import admin_required
 from utils.helpers import build_calibration_reminders, get_document_rows
-from utils.maintenance import build_due_maintenance_reminders
+from utils.maintenance import build_due_maintenance_reminders, get_maintenance_type_label
 
 dashboard_bp = Blueprint("dashboard", __name__)
 
@@ -151,7 +151,27 @@ def reminders():
         borrowed_total = cur.fetchone()["total"]
     else:
         borrowed_total = 0
+
+    # ---- 维护计划到期数据（与顶部铃铛数据源保持一致）----
+    maintenance_data = build_due_maintenance_reminders(conn, days=7)
     conn.close()
+
+    # 维护提醒列表：逾期 + 今日到期（对应铃铛计数逻辑）
+    maintenance_reminders = maintenance_data["overdue"] + maintenance_data["due_today"] + maintenance_data["due_within_7days"]
+    maintenance_summary = maintenance_data["summary"]
+
+    # 统一把 due_date 转成字符串，方便模板比较
+    from datetime import date as _date
+    for item in maintenance_reminders:
+        dd = item.get("due_date")
+        if dd is None:
+            item["due_date_str"] = ""
+        elif isinstance(dd, str):
+            item["due_date_str"] = dd[:10]
+        elif hasattr(dd, "isoformat"):
+            item["due_date_str"] = dd.isoformat()[:10]
+        else:
+            item["due_date_str"] = str(dd)[:10]
 
     all_reminders = build_calibration_reminders(calibration_rows)
 
@@ -177,6 +197,10 @@ def reminders():
         filter_severity=filter_severity or "all",
         filter_device=filter_device,
         severity_counts=severity_counts,
+        # 维护提醒（新增，与铃铛计数对齐）
+        maintenance_reminders=maintenance_reminders,
+        maintenance_summary=maintenance_summary,
+        today_str=__import__('datetime').date.today().isoformat(),
     )
 
 
