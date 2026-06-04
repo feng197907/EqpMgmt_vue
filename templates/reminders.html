@@ -59,22 +59,22 @@
       <span class="badge badge-secondary">{{ calibration_reminders|length }}</span>
     </div>
 
-    {# 状态筛选 Tab #}
-    <div class="btn-group btn-group-sm" role="group" aria-label="状态筛选">
+    {# 状态筛选 Tab（flex-wrap 自动换行，移动端不溢出） #}
+    <div class="d-flex flex-wrap gap-1" role="group" aria-label="状态筛选">
       <a href="{{ url_for('dashboard.reminders', severity='all', device=filter_device) }}"
-         class="btn {% if filter_severity == 'all' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+         class="btn btn-sm {% if filter_severity == 'all' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
         全部 <span class="badge badge-secondary">{{ severity_counts.all }}</span>
       </a>
       <a href="{{ url_for('dashboard.reminders', severity='danger', device=filter_device) }}"
-         class="btn {% if filter_severity == 'danger' %}btn-danger text-white{% else %}btn-outline-danger{% endif %}">
+         class="btn btn-sm {% if filter_severity == 'danger' %}btn-danger text-white{% else %}btn-outline-danger{% endif %}">
         已逾期 <span class="badge {% if filter_severity == 'danger' %}badge-light text-dark{% else %}badge-danger{% endif %}">{{ severity_counts.danger }}</span>
       </a>
       <a href="{{ url_for('dashboard.reminders', severity='warning', device=filter_device) }}"
-         class="btn {% if filter_severity == 'warning' %}btn-warning text-dark{% else %}btn-outline-warning{% endif %}">
+         class="btn btn-sm {% if filter_severity == 'warning' %}btn-warning text-dark{% else %}btn-outline-warning{% endif %}">
         即将到期 <span class="badge {% if filter_severity == 'warning' %}badge-light text-dark{% else %}badge-warning{% endif %}">{{ severity_counts.warning }}</span>
       </a>
       <a href="{{ url_for('dashboard.reminders', severity='info', device=filter_device) }}"
-         class="btn {% if filter_severity == 'info' %}btn-info text-white{% else %}btn-outline-info{% endif %}">
+         class="btn btn-sm {% if filter_severity == 'info' %}btn-info text-white{% else %}btn-outline-info{% endif %}">
         需关注 <span class="badge {% if filter_severity == 'info' %}badge-light text-dark{% else %}badge-info{% endif %}">{{ severity_counts.info }}</span>
       </a>
     </div>
