@@ -1,7 +1,8 @@
 # 设备 Blueprint
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, flash, redirect, render_template, request, url_for, Response
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
+import io
 
 from config import (
     ALLOWED_EXTENSIONS,
@@ -221,3 +222,87 @@ def change_device_status(device_id):
     finally:
         conn.close()
     return redirect(url_for("devices.device_detail", device_id=device_id))
+
+
+@devices_bp.route("/<int:device_id>/qrcode")
+@login_required
+def device_qrcode(device_id):
+    """生成设备二维码（PNG 图片）
+    
+    二维码内容：设备详情页URL，方便扫码直达设备档案
+    同时在图片下方附上设备编码文字（需 Pillow）
+    """
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT device_code, device_name FROM devices WHERE id = %s", (device_id,))
+    device = cur.fetchone()
+    conn.close()
+
+    if device is None:
+        return "设备不存在", 404
+
+    try:
+        import qrcode
+        from qrcode.image.pil import PilImage
+        from PIL import ImageDraw, ImageFont
+    except ImportError:
+        # 降级：返回纯文本提示
+        return Response(
+            f"请在服务器安装 qrcode[pil] 库：pip install qrcode[pil]\n设备编码：{device['device_code']}",
+            mimetype="text/plain; charset=utf-8",
+        )
+
+    # 二维码内容：设备编码（用于扫码识别）
+    qr_data = device["device_code"]
+
+    # 生成二维码
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(qr_data)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+
+    # 在图片底部附上设备编码和名称文字
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+        img_pil = img.get_image()
+        w, h = img_pil.size
+        padding = 48
+        new_img = Image.new("RGB", (w, h + padding), "white")
+        new_img.paste(img_pil, (0, 0))
+        draw = ImageDraw.Draw(new_img)
+
+        # 尝试加载字体，失败则用默认字体
+        try:
+            font = ImageFont.truetype("arial.ttf", 14)
+        except Exception:
+            font = ImageFont.load_default()
+
+        label = f"{device['device_code']}  {device['device_name'] or ''}"
+        # 居中写字
+        bbox = draw.textbbox((0, 0), label, font=font)
+        text_w = bbox[2] - bbox[0]
+        x = (w - text_w) // 2
+        draw.text((x, h + 8), label, fill="black", font=font)
+        img = new_img
+    except Exception:
+        img = img.get_image()
+
+    buf = io.BytesIO()
+    if hasattr(img, 'save'):
+        img.save(buf, format="PNG")
+    else:
+        img.get_image().save(buf, format="PNG")
+    buf.seek(0)
+
+    filename = f"DMS_QR_{device['device_code']}.png"
+    return Response(
+        buf.read(),
+        mimetype="image/png",
+        headers={"Content-Disposition": f"inline; filename={filename}"},
+    )
+

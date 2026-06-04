@@ -1,4 +1,10 @@
 {% extends 'base.html' %}
+{% block head %}
+<!-- jsQR 二维码扫描库 -->
+<script src="{{ url_for('static', filename='vendor/jsqr.min.js') }}"></script>
+<!-- DMS 扫码模块 -->
+<script src="{{ url_for('static', filename='js/qr-scanner.js') }}"></script>
+{% endblock %}
 {% block content %}
 {# 新增/编辑设备页 - 增强版 #}
 <div class="page-container">
@@ -52,13 +58,20 @@
         <div class="form-grid">
           <div class="form-group">
             <label class="form-label required">设备编码</label>
-            <input class="form-control" 
-                   name="device_code" 
-                   required 
-                   value="{{ device.device_code if device }}"
-                   placeholder="请输入唯一的设备编码"
-                   autocomplete="off">
-            <div class="form-hint">设备唯一标识码，不可重复</div>
+            <div class="input-with-scan">
+              <input class="form-control" 
+                     name="device_code" 
+                     id="deviceCodeInput"
+                     required 
+                     value="{{ device.device_code if device }}"
+                     placeholder="请输入唯一的设备编码"
+                     autocomplete="off">
+              <button type="button" class="btn-scan-inline" id="btnScanCode" title="扫码自动填写设备编码">
+                <i data-lucide="scan-line"></i>
+                <span>扫码</span>
+              </button>
+            </div>
+            <div class="form-hint">设备唯一标识码，不可重复 · 或使用扫码枪/摄像头扫描</div>
           </div>
           
           <div class="form-group">
@@ -102,7 +115,7 @@
             <input class="form-control" 
                    type="date" 
                    name="purchase_date" 
-                   value="{{ device.purchase_date.strftime('%Y-%m-%d') if device and device.purchase_date else '' }}">
+                   value="{{ device.purchase_date[:10] if device and device.purchase_date else '' }}">
           </div>
           
           <div class="form-group">
@@ -322,6 +335,61 @@
       width: 100%;
     }
   }
+
+  /* 扫码输入组 */
+  .input-with-scan {
+    display: flex;
+    gap: 0.5rem;
+    align-items: stretch;
+  }
+
+  .input-with-scan .form-control {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .btn-scan-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0 0.875rem;
+    height: 42px;
+    background: var(--color-primary);
+    color: #fff;
+    border: none;
+    border-radius: var(--border-radius);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background var(--transition-fast), transform var(--transition-fast);
+    flex-shrink: 0;
+  }
+
+  .btn-scan-inline:hover {
+    background: var(--color-primary-hover);
+    transform: translateY(-1px);
+  }
+
+  .btn-scan-inline:active {
+    transform: translateY(0);
+  }
+
+  .btn-scan-inline svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  @media (max-width: 480px) {
+    .btn-scan-inline span {
+      display: none;
+    }
+    .btn-scan-inline {
+      width: 44px;
+      padding: 0;
+      justify-content: center;
+    }
+  }
 </style>
 
 <script>
@@ -333,6 +401,37 @@ document.getElementById('deviceForm')?.addEventListener('submit', function(e) {
     submitBtn.innerHTML = '<span class="loading-spinner"></span> 处理中...';
   }
 });
+
+// 扫码按钮（桌面 & 移动端通用）
+(function() {
+  var scanBtn = document.getElementById('btnScanCode');
+  var deviceCodeInput = document.getElementById('deviceCodeInput');
+
+  if (scanBtn && deviceCodeInput) {
+    scanBtn.addEventListener('click', function() {
+      if (window.DMSScanner) {
+        window.DMSScanner.open(deviceCodeInput, function(value) {
+          console.log('[DMS] 扫码结果:', value);
+        });
+      } else {
+        alert('扫码模块加载失败，请刷新页面重试。');
+      }
+    });
+  }
+
+  // 悬浮扫码 FAB（移动端）
+  var fab = document.getElementById('scanFab');
+  if (fab && deviceCodeInput) {
+    fab.addEventListener('click', function(e) {
+      e.preventDefault();
+      if (window.DMSScanner) {
+        window.DMSScanner.open(deviceCodeInput, function(value) {
+          console.log('[DMS] FAB扫码结果:', value);
+        });
+      }
+    });
+  }
+})();
 
 // 重新初始化图标
 if (typeof lucide !== 'undefined') {

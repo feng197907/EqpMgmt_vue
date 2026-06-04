@@ -21,6 +21,7 @@
   <link href="{{ url_for('static', filename='css/components.css') }}?v=2" rel="stylesheet">
   <link href="{{ url_for('static', filename='css/pages.css') }}?v=2" rel="stylesheet">
   <link href="{{ url_for('static', filename='css/pages-enhanced.css') }}?v=2" rel="stylesheet">
+  <link href="{{ url_for('static', filename='css/mobile.css') }}?v=1" rel="stylesheet">
   {% block head %}{% endblock %}
 </head>
 <body data-user-is-admin="{{ 'true' if current_user.is_authenticated and current_user.is_admin else 'false' }}">
@@ -173,7 +174,127 @@
     {% endif %}
   </aside>
 
-  <!-- 主内容区 -->
+  <!-- ===== 移动端底部导航栏 ===== -->
+  {% if current_user.is_authenticated %}
+  <nav class="mobile-bottomnav" id="mobileBottomNav">
+    <div class="mobile-bottomnav-inner">
+      <!-- 首页/看板 -->
+      {% if current_user.has_menu_permission('dashboard') %}
+      <a href="{{ url_for('dashboard.dashboard') }}"
+         class="mobile-bottomnav-item {% if request.endpoint == 'dashboard.dashboard' %}active{% endif %}">
+        <i data-lucide="layout-dashboard"></i>
+        <span>看板</span>
+      </a>
+      {% endif %}
+
+      <!-- 设备列表 -->
+      {% if current_user.has_menu_permission('device_management') %}
+      <a href="{{ url_for('auth.index') }}"
+         class="mobile-bottomnav-item {% if request.endpoint == 'auth.index' %}active{% endif %}">
+        <i data-lucide="cpu"></i>
+        <span>设备</span>
+      </a>
+      {% endif %}
+
+      <!-- 搜索 -->
+      <button class="mobile-bottomnav-item" id="mobileSearchBtn" type="button">
+        <i data-lucide="search"></i>
+        <span>搜索</span>
+      </button>
+
+      <!-- 提醒铃铛 -->
+      {% if current_user.has_menu_permission('reminder_center') %}
+      <a href="{{ url_for('dashboard.reminders') }}"
+         class="mobile-bottomnav-item {% if request.endpoint == 'dashboard.reminders' %}active{% endif %}">
+        <i data-lucide="bell"></i>
+        <span>提醒</span>
+        <span class="mobile-bottomnav-badge" id="mobileBellBadge" style="display:none;">0</span>
+      </a>
+      {% endif %}
+
+      <!-- 更多 -->
+      <button class="mobile-bottomnav-item" id="mobileMoreBtn" type="button">
+        <i data-lucide="menu"></i>
+        <span>更多</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- 移动端"更多"展开菜单 -->
+  <div class="mobile-more-menu-overlay" id="mobileMoreOverlay"></div>
+  <div class="mobile-more-menu" id="mobileMoreMenu">
+    {% if current_user.has_menu_permission('device_management') %}
+    <div class="mobile-more-menu-section">
+      <div class="mobile-more-menu-label">设备管理</div>
+      <a href="{{ url_for('dashboard.add_device') }}" class="mobile-more-menu-item">
+        <i data-lucide="plus-circle"></i>新增设备
+      </a>
+      <a href="{{ url_for('device_changes.device_changes') }}" class="mobile-more-menu-item">
+        <i data-lucide="git-branch"></i>设备变更
+      </a>
+    </div>
+    {% endif %}
+    {% if current_user.has_menu_permission('spare_part_management') %}
+    <div class="mobile-more-menu-section">
+      <div class="mobile-more-menu-label">库存管理</div>
+      <a href="{{ url_for('spare_part.spare_part_list') }}" class="mobile-more-menu-item">
+        <i data-lucide="package"></i>备件库存
+      </a>
+    </div>
+    {% endif %}
+    {% if current_user.has_menu_permission('document_center') %}
+    <div class="mobile-more-menu-section">
+      <div class="mobile-more-menu-label">文档中心</div>
+      <a href="{{ url_for('documents.document_search') }}" class="mobile-more-menu-item">
+        <i data-lucide="file-text"></i>全部文档
+      </a>
+      {% if current_user.has_permission('document_approval') %}
+      <a href="{{ url_for('approvals.approvals') }}" class="mobile-more-menu-item">
+        <i data-lucide="clipboard-check"></i>待审批
+        {% if pending_count > 0 %}<span class="nav-badge" style="margin-left:auto;">{{ pending_count }}</span>{% endif %}
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% if current_user.has_menu_permission('user_management') or current_user.has_menu_permission('system_settings') %}
+    <div class="mobile-more-menu-section">
+      <div class="mobile-more-menu-label">系统</div>
+      {% if current_user.has_menu_permission('user_management') %}
+      <a href="{{ url_for('users.user_list') }}" class="mobile-more-menu-item">
+        <i data-lucide="users"></i>用户管理
+      </a>
+      {% endif %}
+      {% if current_user.has_menu_permission('system_settings') %}
+      <a href="{{ url_for('settings.system_settings') }}" class="mobile-more-menu-item">
+        <i data-lucide="settings"></i>系统设置
+      </a>
+      {% endif %}
+      <a href="{{ url_for('auth.logout') }}" class="mobile-more-menu-item">
+        <i data-lucide="log-out"></i>退出登录
+      </a>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- 移动端搜索覆盖层 -->
+  <div class="mobile-search-overlay" id="mobileSearchOverlay">
+    <div class="mobile-search-bar">
+      <form class="d-flex flex-grow-1" action="{{ url_for('search.search_results') }}" method="get" id="mobileSearchForm">
+        <input type="text" name="q" class="mobile-search-input" placeholder="搜索设备、文档..." 
+               id="mobileSearchInput" autocomplete="off" autofocus>
+      </form>
+      <button class="mobile-search-cancel" id="mobileSearchCancel">取消</button>
+    </div>
+    <div style="flex:1;background:rgba(0,0,0,0.4);" id="mobileSearchBg"></div>
+  </div>
+  {% endif %}
+
+  <!-- 移动端悬浮扫码按钮（进入新增设备页面时才显示） -->
+  {% if current_user.is_authenticated and request.endpoint == 'dashboard.add_device' %}
+  <a href="#" class="scan-fab" id="scanFab" title="扫码录入设备编码">
+    <i data-lucide="scan-line"></i>
+  </a>
+  {% endif %}
   <div class="main-wrapper" id="mainWrapper">
     <!-- 顶部栏 -->
     <header class="topbar">
@@ -280,6 +401,8 @@
   </script>
   <!-- Custom JS -->
   <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+  {% block scripts %}{% endblock %}
 
   <!-- 全局搜索快捷键 -->
   <script>

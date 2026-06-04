@@ -204,3 +204,94 @@
   };
 
 })();
+
+// ==================== 移动端底部导航交互 ====================
+(function() {
+  'use strict';
+
+  // "更多"展开/收起
+  var moreBtn = document.getElementById('mobileMoreBtn');
+  var moreMenu = document.getElementById('mobileMoreMenu');
+  var moreOverlay = document.getElementById('mobileMoreOverlay');
+
+  function openMoreMenu() {
+    if (moreMenu) moreMenu.classList.add('open');
+    if (moreOverlay) moreOverlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeMoreMenu() {
+    if (moreMenu) moreMenu.classList.remove('open');
+    if (moreOverlay) moreOverlay.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  if (moreBtn) {
+    moreBtn.addEventListener('click', function() {
+      if (moreMenu && moreMenu.classList.contains('open')) {
+        closeMoreMenu();
+      } else {
+        openMoreMenu();
+      }
+    });
+  }
+
+  if (moreOverlay) {
+    moreOverlay.addEventListener('click', closeMoreMenu);
+  }
+
+  // 移动端搜索覆盖层
+  var searchBtn = document.getElementById('mobileSearchBtn');
+  var searchOverlay = document.getElementById('mobileSearchOverlay');
+  var searchCancel = document.getElementById('mobileSearchCancel');
+  var searchInput = document.getElementById('mobileSearchInput');
+  var searchBg = document.getElementById('mobileSearchBg');
+
+  function openMobileSearch() {
+    if (searchOverlay) {
+      searchOverlay.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      setTimeout(function() {
+        if (searchInput) searchInput.focus();
+      }, 100);
+    }
+  }
+
+  function closeMobileSearch() {
+    if (searchOverlay) {
+      searchOverlay.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+  }
+
+  if (searchBtn) searchBtn.addEventListener('click', openMobileSearch);
+  if (searchCancel) searchCancel.addEventListener('click', closeMobileSearch);
+  if (searchBg) searchBg.addEventListener('click', closeMobileSearch);
+
+  // 移动端铃铛角标同步
+  var mobileBellBadge = document.getElementById('mobileBellBadge');
+  if (mobileBellBadge) {
+    var count = 0;
+    fetch('/api/dashboard/due-maintenance?days=7')
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        count += (d.summary.overdue_count || 0) + (d.summary.due_today_count || 0);
+        updateMobileBell();
+      }).catch(function() {});
+    fetch('/api/dashboard/calibration-overdue-count')
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        count += (d.overdue_count || 0);
+        updateMobileBell();
+      }).catch(function() {});
+
+    function updateMobileBell() {
+      if (count > 0) {
+        mobileBellBadge.textContent = count > 99 ? '99+' : count;
+        mobileBellBadge.style.display = '';
+      } else {
+        mobileBellBadge.style.display = 'none';
+      }
+    }
+  }
+})();

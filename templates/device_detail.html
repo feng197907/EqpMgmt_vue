@@ -41,6 +41,11 @@
         编辑
       </a>
       {% endif %}
+      <!-- 二维码标签按钮 -->
+      <button type="button" class="btn-edit" onclick="showDeviceQRCode('{{ device.device_code }}', '{{ url_for('devices.device_qrcode', device_id=device.id) }}')" title="查看设备二维码标签">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg>
+        二维码
+      </button>
     </div>
   </div>
 
@@ -201,4 +206,45 @@
   </div>
 </div>
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+/**
+ * 设备二维码弹窗
+ */
+function showDeviceQRCode(deviceCode, qrcodeUrl) {
+  // 防止重复插入
+  var existing = document.getElementById('deviceQRModal');
+  if (existing) existing.remove();
+
+  var html = '<div id="deviceQRModal" style="'
+    + 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;'
+    + 'display:flex;align-items:center;justify-content:center;padding:1rem;">'
+    + '<div style="background:#fff;border-radius:16px;padding:1.5rem;max-width:320px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);">'
+    + '<h3 style="margin:0 0 4px;font-size:16px;font-weight:600;color:#1E293B;">设备二维码标签</h3>'
+    + '<p style="margin:0 0 16px;font-size:13px;color:#64748B;">' + deviceCode + '</p>'
+    + '<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;padding:16px;margin-bottom:16px;">'
+    + '<img src="' + qrcodeUrl + '" alt="设备二维码" '
+    + '  style="width:200px;height:auto;display:block;margin:0 auto;" '
+    + '  onerror="this.parentElement.innerHTML=\'<p style=&quot;color:#EF4444;font-size:13px;&quot;>二维码生成失败，请确认服务器已安装 qrcode[pil] 库</p>\'">'
+    + '</div>'
+    + '<p style="font-size:12px;color:#94A3B8;margin-bottom:16px;">扫码可直接获取设备编码</p>'
+    + '<div style="display:flex;gap:8px;justify-content:center;">'
+    + '<a href="' + qrcodeUrl + '" download="QR_' + deviceCode + '.png" '
+    + '   style="flex:1;padding:10px;background:#2563EB;color:#fff;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500;">下载图片</a>'
+    + '<button onclick="document.getElementById(\'deviceQRModal\').remove()" '
+    + '        style="flex:1;padding:10px;background:#F1F5F9;color:#1E293B;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;">关闭</button>'
+    + '</div>'
+    + '</div>'
+    + '</div>';
+
+  document.body.insertAdjacentHTML('beforeend', html);
+
+  // 点击遮罩关闭
+  document.getElementById('deviceQRModal').addEventListener('click', function(e) {
+    if (e.target === this) this.remove();
+  });
+}
+</script>
 {% endblock %}
