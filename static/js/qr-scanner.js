@@ -28,16 +28,49 @@
     }
   }
 
-  /** 从 HTMLImageElement 解码，返回 Promise<string|null> */
+  /** 从 HTMLImageElement 解码，自动缩放到合理尺寸，返回 Promise<string|null> */
   function decodeImage(imgEl) {
     return new Promise(function(resolve) {
+      var MAX_SIDE = 1600;
+      var w = imgEl.naturalWidth  || imgEl.width  || 800;
+      var h = imgEl.naturalHeight || imgEl.height || 800;
+
+      // 等比缩放
+      var scale = 1;
+      if (w > MAX_SIDE || h > MAX_SIDE) {
+        scale = MAX_SIDE / Math.max(w, h);
+      }
+      var dw = Math.round(w * scale);
+      var dh = Math.round(h * scale);
+
       var canvas = document.createElement('canvas');
-      canvas.width  = imgEl.naturalWidth  || imgEl.width;
-      canvas.height = imgEl.naturalHeight || imgEl.height;
+      canvas.width  = dw;
+      canvas.height = dh;
       var ctx = canvas.getContext('2d');
-      ctx.drawImage(imgEl, 0, 0, canvas.width, canvas.height);
-      var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      resolve(decodeImageData(imageData));
+      ctx.drawImage(imgEl, 0, 0, dw, dh);
+
+      // 尝试全图解码
+      var imageData = ctx.getImageData(0, 0, dw, dh);
+      var result = decodeImageData(imageData);
+
+      if (result) { resolve(result); return; }
+
+      // 如果全图没识别到，尝试将图片增强对比度后再扫一次
+      // （某些低对比度图片 jsQR 不容易识别）
+      try {
+        var d = imageData.data;
+        for (var i = 0; i < d.length; i += 4) {
+          // 转灰度 → 二值化（阈值 128）
+          var gray = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+          var bin  = gray > 128 ? 255 : 0;
+          d[i] = d[i+1] = d[i+2] = bin;
+        }
+        ctx.putImageData(imageData, 0, 0);
+        var imageData2 = ctx.getImageData(0, 0, dw, dh);
+        result = decodeImageData(imageData2);
+      } catch(e) { /* ignore */ }
+
+      resolve(result);
     });
   }
 
@@ -101,8 +134,8 @@
               '</div>',
               '<p class="qr-upload-hint" id="dmsQRUploadHint">拍照或从相册选取二维码图片</p>',
               '<p class="qr-upload-sub" id="dmsQRUploadSub">自动解析图片中的二维码/条形码</p>',
-              /* 隐藏的文件输入，accept 设置 image/* 让手机弹出拍照+相册选择菜单 */
-              '<input type="file" id="dmsQRFileInput" accept="image/*" capture="environment" style="display:none;">',
+              /* 隐藏的文件输入，accept 设置 image/* 让手机弹出拍照+相册选择菜单；不加 capture 属性让用户可以选相册 */
+              '<input type="file" id="dmsQRFileInput" accept="image/*" style="display:none;">',
               '<button class="qr-upload-btn" id="dmsQRUploadBtn" type="button">',
                 '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>',
                 '拍照 / 选择图片',
@@ -158,21 +191,25 @@
 
         self._showStatus('正在解析图片...', 'loading');
 
-        var reader = new FileReader();
-        reader.onload = function(ev) {
-          var img = new Image();
-          img.onload = function() {
-            decodeImage(img).then(function(value) {
-              if (value) {
-                self._applyResult(value);
-              } else {
-                self._showStatus('未检测到二维码，请确认图片清晰并重试', 'error');
-              }
-            });
-          };
-          img.src = ev.target.result;
+        // 将文件转成 createObjectURL，让 img.onload 拿到原始尺寸
+        var objectURL = URL.createObjectURL(file);
+        var img = new Image();
+        img.onload = function() {
+          decodeImage(img).then(function(value) {
+            URL.revokeObjectURL(objectURL);
+            if (value) {
+              self._applyResult(value);
+            } else {
+              self._showStatus('未检测到二维码，请换一张更清晰的图片或手动输入', 'error');
+            }
+          });
         };
-        reader.readAsDataURL(file);
+        img.onerror = function() {
+          URL.revokeObjectURL(objectURL);
+          self._showStatus('图片加载失败，请重试', 'error');
+        };
+        img.src = objectURL;
+
         // 清空，允许重复选同一张图
         self._fileInput.value = '';
       });
