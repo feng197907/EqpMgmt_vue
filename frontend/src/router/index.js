@@ -5,6 +5,9 @@ const routes = [
   { path: '/', redirect: '/login' },
   { path: '/login', name: 'Login', component: Login },
   { path: '/dashboard', name: 'Dashboard', component: () => import('../pages/Dashboard.vue') },
+  { path: '/documents', name: 'Documents', component: () => import('../pages/Documents.vue') },
+  { path: '/documents/upload', name: 'UploadDocument', component: () => import('../pages/UploadDocument.vue') },
+  { path: '/approvals', name: 'Approvals', component: () => import('../pages/Approvals.vue') },
 ]
 
 const router = createRouter({ history: createWebHistory(), routes })
