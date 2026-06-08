@@ -39,7 +39,12 @@ export default {
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`
         router.push('/dashboard')
       } catch (e) {
-        error.value = e.response?.data?.detail || '登录失败，请检查账号密码'
+        const detail = e.response?.data?.detail
+        if (e.code === 'ERR_NETWORK' || !e.response) {
+          error.value = '无法连接到后端服务，请确认后端已启动 (http://127.0.0.1:8000)'
+        } else {
+          error.value = detail || '登录失败，请检查账号密码'
+        }
       }
     }
 
