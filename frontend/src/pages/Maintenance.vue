@@ -38,7 +38,9 @@
       </template>
       <el-table :data="plans" stripe empty-text="暂无维护计划">
         <el-table-column prop="id" label="ID" width="70" />
-        <el-table-column prop="maintenance_type" label="类型" />
+        <el-table-column prop="maintenance_type" label="类型">
+          <template #default="{ row }">{{ maintTypeLabel(row.maintenance_type) }}</template>
+        </el-table-column>
         <el-table-column prop="interval_days" label="周期(天)" width="100" />
         <el-table-column prop="next_due_date" label="下次到期" width="120" />
         <el-table-column prop="urgency" label="紧迫度" width="90">
@@ -46,7 +48,7 @@
             <el-tag
               :type="row.urgency === 'success' ? 'success' : row.urgency === 'warning' ? 'warning' : 'danger'"
               size="small"
-            >{{ row.urgency }}</el-tag>
+            >{{ urgencyLabel(row.urgency) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="260">
@@ -94,7 +96,9 @@
       <el-table :data="records" stripe empty-text="暂无维护记录">
         <el-table-column prop="id" label="ID" width="70" />
         <el-table-column prop="content" label="内容" />
-        <el-table-column prop="result" label="结果" width="100" />
+        <el-table-column prop="result" label="结果" width="100">
+          <template #default="{ row }">{{ resultLabel(row.result) }}</template>
+        </el-table-column>
         <el-table-column prop="performed_by" label="执行人" width="120" />
         <el-table-column prop="performed_at" label="时间" width="120" />
       </el-table>
@@ -125,7 +129,9 @@
       <el-table :data="repairRecords" stripe empty-text="暂无维修记录">
         <el-table-column prop="id" label="ID" width="70" />
         <el-table-column prop="content" label="内容" />
-        <el-table-column prop="result" label="结果" width="100" />
+        <el-table-column prop="result" label="结果" width="100">
+          <template #default="{ row }">{{ resultLabel(row.result) }}</template>
+        </el-table-column>
         <el-table-column prop="performed_by" label="执行人" width="120" />
         <el-table-column prop="performed_at" label="时间" width="120" />
       </el-table>
@@ -173,6 +179,10 @@ export default {
       const item = devices.value.find((d) => d.id === deviceId.value)
       return item ? `${item.device_code} - ${item.device_name}` : '未选择'
     })
+
+    const maintTypeLabel = (t) => ({ preventive: '预防性维护', corrective: '故障维修', inspection: '定期检查' }[t] || t)
+    const urgencyLabel = (u) => ({ success: '正常', warning: '即将到期', danger: '已过期' }[u] || u)
+    const resultLabel = (r) => ({ qualified: '合格', pending: '待处理', unqualified: '不合格', fixed: '已修复' }[r] || r)
 
     const loadDevices = async () => {
       devices.value = await listDevices()
@@ -261,6 +271,7 @@ export default {
       deviceLabel, plans, records, repairRecords, currentPlanId,
       form, recordForm, repairForm,
       savingPlan, savingRecord, savingRepair,
+      maintTypeLabel, urgencyLabel, resultLabel,
       createPlan, fillRecordPlan, loadPlanRecords, createRecord,
       createRepair, loadAll,
     }

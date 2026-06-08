@@ -1,0 +1,1 @@
+import{d as t}from"./index-Cq9x03KA.js";async function c(e){return(await t.get("/api/v1/devices/",{params:e})).data}async function n(e){return(await t.post("/api/v1/devices/",e)).data}async function r(e,a){return(await t.put(`/api/v1/devices/${e}`,a)).data}async function d(e){return(await t.delete(`/api/v1/devices/${e}`)).data}export{n as c,d,c as l,r as u};

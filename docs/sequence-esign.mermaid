@@ -1,0 +1,42 @@
+sequenceDiagram
+    actor Client
+    participant Router as api/esign.py
+    participant ESignService as services/esign_service.py
+    participant DB as SQLAlchemy/MySQL
+    participant Audit as services/audit_service.py
+
+    Client->>Router: POST /api/v1/esign/verify {username, password, record_type, record_id, sign_meaning}
+    Router->>Router: get_current_user (JWT验证)
+    Router->>Router: 校验 username == current_user.username (防代签)
+
+    Router->>ESignService: verify_and_sign(db, username, password, record_type, record_id, sign_meaning, remark, ip)
+
+    ESignService->>DB: SELECT * FROM esign_lockouts WHERE username=?
+    DB-->>ESignService: lockout_row
+
+    alt 已锁定 (locked_until > now)
+        ESignService-->>Router: 429 "签名验证已锁定"
+        Router-->>Client: 429 {message: "请 N 秒后重试"}
+    end
+
+    ESignService->>DB: SELECT * FROM users WHERE username=?
+    DB-->>ESignService: user_row
+    ESignService->>ESignService: verify_password(password, user.password)
+
+    alt 密码错误
+        ESignService->>DB: UPDATE esign_lockouts SET fail_count+1
+        alt fail_count >= 3
+            ESignService->>DB: UPDATE esign_lockouts SET locked_until = now() + 5min
+            ESignService-->>Router: 429 "密码错误次数过多"
+        else
+            ESignService-->>Router: 401 "密码验证失败"
+        end
+        Router-->>Client: 4xx {message: "..."}
+    else 密码正确
+        ESignService->>DB: DELETE FROM esign_lockouts WHERE username=?
+        ESignService->>DB: INSERT INTO electronic_signatures (record_type, record_id, signed_by, ...) VALUES (...)
+        DB-->>ESignService: signature_id
+        ESignService->>Audit: log_action(db, user, "electronic_sign", record_type, record_id, ...)
+        ESignService-->>Router: ElectronicSignature
+        Router-->>Client: 200 {success: true, signature_id: N}
+    end

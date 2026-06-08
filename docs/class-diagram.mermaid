@@ -1,0 +1,247 @@
+classDiagram
+    direction TB
+
+    class User {
+        +int id
+        +str username
+        +str password
+        +str role
+        +str status
+        +str permissions
+        +str email
+        +str display_name
+        +bool must_change_password
+        +datetime created_at
+        +datetime updated_at
+    }
+
+    class Device {
+        +int id
+        +str device_code
+        +str device_name
+        +str model
+        +str location
+        +str status
+        +bool is_deleted
+        +datetime created_at
+    }
+
+    class Document {
+        +int id
+        +int device_id
+        +str doc_type
+        +str doc_name
+        +str version
+        +str file_path
+        +str uploaded_by
+        +datetime upload_time
+        +str remarks
+        +str status
+        +int download_count
+        +bool is_deleted
+        +date calibration_due_date
+    }
+
+    class ApprovalRequest {
+        +int id
+        +int doc_id
+        +str status
+        +str created_by
+        +int current_step
+        +datetime created_at
+    }
+
+    class ApprovalStep {
+        +int id
+        +int request_id
+        +int step_order
+        +str approver_role
+        +str status
+        +str decided_by
+        +datetime decided_at
+    }
+
+    class MaintenancePlan {
+        +int id
+        +int device_id
+        +str maintenance_type
+        +int interval_days
+        +str next_due_date
+        +bool is_active
+        +bool is_closed
+        +datetime closed_at
+        +str closed_by
+        +str close_reason
+        +str created_by
+        +datetime created_at
+        +datetime updated_at
+    }
+
+    class MaintenanceRecord {
+        +int id
+        +int plan_id
+        +int device_id
+        +str maintenance_type
+        +str content
+        +str result
+        +str performed_by
+        +str performed_at
+        +str next_due_date
+        +str parts_used
+        +datetime created_at
+    }
+
+    class DeviceRepairRecord {
+        +int id
+        +int device_id
+        +str content
+        +str result
+        +str performed_by
+        +str performed_at
+        +str parts_used
+        +datetime created_at
+    }
+
+    class SparePart {
+        +int id
+        +str code
+        +str name
+        +str category
+        +str specification
+        +str unit
+        +str brand
+        +int safety_stock_min
+        +int safety_stock_max
+        +int current_stock
+        +float weighted_avg_price
+        +str supplier_name
+        +str supplier_contact
+        +str supplier_phone
+        +str supplier_doc_path
+        +str remark
+        +bool is_active
+        +datetime created_at
+        +datetime updated_at
+    }
+
+    class SparePartInbound {
+        +int id
+        +int spare_part_id
+        +int quantity
+        +float unit_price
+        +str batch_no
+        +datetime inbound_date
+        +str doc_path
+        +str remark
+        +str created_by
+        +datetime created_at
+    }
+
+    class SparePartConsumption {
+        +int id
+        +int spare_part_id
+        +int maintenance_record_id
+        +int quantity
+        +float unit_price
+        +str batch_no
+        +str consumed_by
+        +datetime consumed_at
+        +str remark
+    }
+
+    class SparePartAlert {
+        +int id
+        +int spare_part_id
+        +str alert_type
+        +int current_stock
+        +int threshold
+        +bool is_resolved
+        +datetime resolved_at
+        +datetime created_at
+    }
+
+    class BorrowRecord {
+        +int id
+        +int doc_id
+        +str borrower
+        +str department
+        +date borrow_date
+        +date expected_return_date
+        +date actual_return_date
+        +str status
+        +str remarks
+        +datetime created_at
+    }
+
+    class AuditLog {
+        +int id
+        +str user
+        +str action
+        +str target_type
+        +int target_id
+        +str details
+        +str before_value
+        +str after_value
+        +str reason
+        +str ip_address
+        +datetime log_time
+    }
+
+    class SystemSetting {
+        +int id
+        +str setting_key
+        +str setting_value
+        +str description
+        +str updated_by
+    }
+
+    class ElectronicSignature {
+        +int id
+        +str record_type
+        +int record_id
+        +str signed_by
+        +str signed_by_display
+        +str sign_meaning
+        +str sign_meaning_label
+        +datetime signed_at
+        +str ip_address
+        +str remark
+        +bool is_deleted
+    }
+
+    class DeviceStatusRequest {
+        +int id
+        +int device_id
+        +str current_status
+        +str new_status
+        +str reason
+        +str requested_by
+        +datetime requested_at
+        +str status
+        +str decided_by
+        +datetime decided_at
+        +str comment
+    }
+
+    class PasswordResetRequest {
+        +int id
+        +int user_id
+        +str username
+        +str ip_address
+        +str status
+        +datetime requested_at
+        +str processed_by
+        +datetime processed_at
+    }
+
+    Device "1" --o "*" Document : has
+    Device "1" --o "*" MaintenancePlan : has
+    Device "1" --o "*" DeviceRepairRecord : has
+    Device "1" --o "*" DeviceStatusRequest : has
+    Document "1" --o "*" BorrowRecord : has
+    Document "1" --o "0..1" ApprovalRequest : may_have
+    ApprovalRequest "1" --o "*" ApprovalStep : has
+    MaintenancePlan "1" --o "*" MaintenanceRecord : has
+    SparePart "1" --o "*" SparePartInbound : has
+    SparePart "1" --o "*" SparePartConsumption : has
+    SparePart "1" --o "*" SparePartAlert : has

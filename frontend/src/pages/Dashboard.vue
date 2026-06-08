@@ -35,10 +35,18 @@
     <el-card style="margin-top:16px;">
       <template #header><span>快捷导航</span></template>
       <el-space wrap>
+        <el-button type="primary" @click="$router.push('/devices')">设备管理</el-button>
         <el-button type="primary" @click="$router.push('/documents')">文档管理</el-button>
         <el-button type="success" @click="$router.push('/documents/upload')">上传文档</el-button>
         <el-button type="warning" @click="$router.push('/approvals')">审批任务</el-button>
         <el-button type="info" @click="$router.push('/maintenance')">维护管理</el-button>
+        <el-button @click="$router.push('/spare-parts')">备件管理</el-button>
+        <el-button @click="$router.push('/borrowing')">借阅管理</el-button>
+        <el-button @click="$router.push('/users')">用户管理</el-button>
+        <el-button @click="$router.push('/search')">全局搜索</el-button>
+        <el-button @click="$router.push('/audit-logs')">审计日志</el-button>
+        <el-button @click="$router.push('/settings')">系统设置</el-button>
+        <el-button type="danger" @click="$router.push('/profile')">个人设置</el-button>
       </el-space>
     </el-card>
   </div>

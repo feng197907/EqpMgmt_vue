@@ -1,43 +1,70 @@
-from logging.config import fileConfig
-import os
-import sys
+"""Alembic environment configuration.
 
-from alembic import context
+Reads the database URL from the application settings module so that
+``alembic.ini`` never hard-codes production credentials.  The
+``sqlalchemy.url`` key in ``alembic.ini`` is only a placeholder and is
+overridden at runtime by ``settings.SQLALCHEMY_DATABASE_URL``.
+"""
+
+from logging.config import fileConfig
+
 from sqlalchemy import engine_from_config, pool
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if ROOT not in sys.path:
-    sys.path.insert(0, ROOT)
+from alembic import context
 
-from backend.app.core.config import settings
-from backend.app.db.session import Base
-from backend.app.models import user, device, document, maintenance  # noqa: F401
-
+# ── Alembic Config ─────────────────────────────────────────────────────────
 config = context.config
+
+# ── Interpret the config file for Python logging ───────────────────────────
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-target_metadata = Base.metadata
+# ── Import application settings & models ───────────────────────────────────
+# We import the full models package so that ``target_metadata`` contains
+# every registered table.  This enables ``--autogenerate`` to detect
+# model-level changes.
+from backend.app.core.config import settings  # noqa: E402
+from backend.app.db.session import Base  # noqa: E402
+import backend.app.models  # noqa: F401, E402
+
+# Override the placeholder URL in alembic.ini with the real one from settings
 config.set_main_option("sqlalchemy.url", settings.SQLALCHEMY_DATABASE_URL)
 
+target_metadata = Base.metadata
 
-def run_migrations_offline():
+
+def run_migrations_offline() -> None:
+    """Run migrations in 'offline' mode.
+
+    Configures the context with just a URL and not an Engine.  Calls to
+    ``context.execute()`` emit the given string to the script output.
+    """
     url = config.get_main_option("sqlalchemy.url")
-    context.configure(url=url, target_metadata=target_metadata, literal_binds=True, dialect_opts={"paramstyle": "named"})
-
+    context.configure(
+        url=url,
+        target_metadata=target_metadata,
+        literal_binds=True,
+        dialect_opts={"paramstyle": "named"},
+    )
     with context.begin_transaction():
         context.run_migrations()
 
 
-def run_migrations_online():
+def run_migrations_online() -> None:
+    """Run migrations in 'online' mode.
+
+    Creates an Engine and associates a connection with the context.
+    """
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
-
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+        )
         with context.begin_transaction():
             context.run_migrations()
 

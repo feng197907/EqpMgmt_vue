@@ -1,0 +1,26 @@
+sequenceDiagram
+    actor Engineer
+    actor Admin
+    participant ChangeRouter as api/device_changes.py
+    participant DeviceRouter as api/devices.py
+    participant ChangeService as services/device_change_service.py
+    participant AuditService as services/audit_service.py
+    participant DB as SQLAlchemy Session
+
+    Engineer->>DeviceRouter: PUT /api/v1/devices/{id} {status: "retired"}
+    DeviceRouter->>ChangeService: create_change_request(db, user, device, new_status, reason)
+    ChangeService->>DB: db.add(DeviceStatusRequest)
+    ChangeService->>AuditService: log_action("request_device_status_change", ...)
+    ChangeService-->>ChangeRouter: {status: "pending", request_id}
+
+    Admin->>ChangeRouter: POST /api/v1/device-changes/{id}/decide
+    ChangeRouter->>ChangeService: decide_change_request(db, admin, request_id, decision, comment)
+    alt decision == "approve"
+        ChangeService->>DB: device.status = new_status
+        ChangeService->>DB: request.status = "approved"
+        ChangeService->>AuditService: log_action("approve_device_change", before={status: old}, after={status: new})
+    else decision == "reject"
+        ChangeService->>DB: request.status = "rejected"
+        ChangeService->>AuditService: log_action("reject_device_change", reason=comment)
+    end
+    ChangeService-->>ChangeRouter: {status: "approved"/"rejected"}

@@ -33,6 +33,38 @@
           <el-icon><Tools /></el-icon>
           <span>维护管理</span>
         </el-menu-item>
+        <el-menu-item index="/devices">
+          <el-icon><Monitor /></el-icon>
+          <span>设备管理</span>
+        </el-menu-item>
+        <el-menu-item index="/users">
+          <el-icon><User /></el-icon>
+          <span>用户管理</span>
+        </el-menu-item>
+        <el-menu-item index="/spare-parts">
+          <el-icon><Box /></el-icon>
+          <span>备件管理</span>
+        </el-menu-item>
+        <el-menu-item index="/borrowing">
+          <el-icon><Reading /></el-icon>
+          <span>借阅管理</span>
+        </el-menu-item>
+        <el-menu-item index="/search">
+          <el-icon><SearchIcon /></el-icon>
+          <span>全局搜索</span>
+        </el-menu-item>
+        <el-menu-item index="/audit-logs">
+          <el-icon><List /></el-icon>
+          <span>审计日志</span>
+        </el-menu-item>
+        <el-menu-item index="/settings">
+          <el-icon><Setting /></el-icon>
+          <span>系统设置</span>
+        </el-menu-item>
+        <el-menu-item index="/profile">
+          <el-icon><UserFilled /></el-icon>
+          <span>个人设置</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
 
@@ -56,12 +88,12 @@
 <script>
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { HomeFilled, Document, Upload, Check, Tools } from '@element-plus/icons-vue'
+import { HomeFilled, Document, Upload, Check, Tools, Monitor, User, Box, Reading, Search as SearchIcon, List, Setting, UserFilled } from '@element-plus/icons-vue'
 import api from '../api/auth'
 
 export default {
   name: 'AppLayout',
-  components: { HomeFilled, Document, Upload, Check, Tools },
+  components: { HomeFilled, Document, Upload, Check, Tools, Monitor, User, Box, Reading, SearchIcon, List, Setting, UserFilled },
   setup() {
     const router = useRouter()
     const route = useRoute()

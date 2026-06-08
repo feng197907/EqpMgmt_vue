@@ -1,0 +1,34 @@
+sequenceDiagram
+    actor Uploader
+    actor Approver
+    participant DocRouter as api/documents.py
+    participant ApprovalRouter as api/approvals.py
+    participant ESignRouter as api/esign.py
+    participant DocService as services/document_service.py
+    participant ApprovalService as services/approval_service.py
+    participant ESignService as services/esign_service.py
+    participant AuditService as services/audit_service.py
+    participant DB as SQLAlchemy Session
+
+    Uploader->>DocRouter: POST /api/v1/documents/upload
+    DocRouter->>DocService: upload_document(db, user, file, metadata)
+    DocService->>DB: db.add(Document)
+    DocService->>AuditService: log_action("upload_document", ...)
+    DocService-->>DocRouter: DocumentOut
+
+    Uploader->>DocRouter: POST /api/v1/documents/{id}/submit
+    DocRouter->>DocService: submit_document(db, user, doc_id)
+    DocService->>ApprovalService: create_approval_request(db, doc, user)
+    ApprovalService->>DB: db.add(ApprovalRequest + ApprovalSteps)
+    DocService->>DB: doc.status = "pending"
+    DocService-->>DocRouter: {status: "pending", request_id}
+
+    Approver->>ApprovalRouter: POST /api/v1/approvals/{id}/approve
+    ApprovalRouter->>ApprovalService: approve_request(db, user, request_id)
+    ApprovalService->>ESignService: require_esign(user, password, "document", doc_id, "approved")
+    ESignService->>ESignService: verify_signature(user, password)
+    ESignService->>DB: db.add(ElectronicSignature)
+    ApprovalService->>DB: step.status = "approved"
+    ApprovalService->>DB: doc.status = "active"
+    ApprovalService->>AuditService: log_action("approve_request", before/after)
+    ApprovalService-->>ApprovalRouter: {status: "approved"}

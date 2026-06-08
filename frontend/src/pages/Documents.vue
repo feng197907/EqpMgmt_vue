@@ -34,11 +34,13 @@
       <el-table :data="docs" stripe style="width:100%" v-loading="loading">
         <el-table-column prop="id" label="ID" width="70" />
         <el-table-column prop="doc_name" label="文档名称" min-width="200" />
-        <el-table-column prop="doc_type" label="类型" width="120" />
+        <el-table-column prop="doc_type" label="类型" width="120">
+          <template #default="{ row }">{{ docTypeLabel(row.doc_type) }}</template>
+        </el-table-column>
         <el-table-column prop="version" label="版本" width="80" />
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag>
+            <el-tag :type="statusType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="uploaded_by" label="上传者" width="120" />
@@ -119,11 +121,21 @@ export default {
       return map[status] || 'info'
     }
 
+    const statusLabel = (status) => {
+      const map = { active: '已生效', draft: '草稿', pending: '待审批', archived: '已归档' }
+      return map[status] || status
+    }
+
+    const docTypeLabel = (type) => {
+      const map = { manual: '手册', calibration: '校准记录', certificate: '证书' }
+      return map[type] || type
+    }
+
     const applyFilters = () => load()
 
     onMounted(load)
 
-    return { docs, loading, filters, applyFilters, downloadDoc, submit, del, statusType }
+    return { docs, loading, filters, applyFilters, downloadDoc, submit, del, statusType, statusLabel, docTypeLabel }
   },
 }
 </script>

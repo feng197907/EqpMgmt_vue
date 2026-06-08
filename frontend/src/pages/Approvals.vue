@@ -11,7 +11,7 @@
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
             <el-tag :type="row.status === 'pending' ? 'warning' : 'info'" size="small">
-              {{ row.status }}
+              {{ statusLabel(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -70,9 +70,11 @@ export default {
       } catch (e) { /* cancelled */ }
     }
 
+    const statusLabel = (s) => ({ pending: '待审批', approved: '已通过', rejected: '已拒绝' }[s] || s)
+
     onMounted(load)
 
-    return { requests, loading, approve, reject }
+    return { requests, loading, approve, reject, statusLabel }
   },
 }
 </script>

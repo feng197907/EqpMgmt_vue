@@ -1,72 +1,80 @@
+"""User management routes — CRUD operations for admin users.
+
+All business logic is delegated to :mod:`backend.app.services.user_service`.
+"""
+
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
 
 from backend.app.api.deps import get_db, require_admin
 from backend.app.models.user import User
-from backend.app.services.auth_service import get_password_hash
+from backend.app.schemas.user import UserCreate, UserUpdate, UserOut, UserListOut
+from backend.app.services import user_service
 
 router = APIRouter()
 
 
-class UserCreate(BaseModel):
-    username: str
-    password: str
-    role: str = 'equipment_engineer'
-
-
-class UserOut(BaseModel):
-    id: int
-    username: str
-    role: str
-
-
-@router.get("/", response_model=List[UserOut], dependencies=[Depends(require_admin)])
+@router.get("/", response_model=List[UserListOut], dependencies=[Depends(require_admin)])
 def list_users(db: Session = Depends(get_db)):
-    users = db.query(User).all()
-    return [UserOut(id=u.id, username=u.username, role=u.role or '') for u in users]
+    """Return all users (lightweight list)."""
+    users = user_service.list_users(db)
+    return [UserListOut.model_validate(u) for u in users]
 
 
 @router.post("/", response_model=UserOut, dependencies=[Depends(require_admin)])
-def create_user(payload: UserCreate, db: Session = Depends(get_db)):
-    existing = db.query(User).filter(User.username == payload.username).first()
-    if existing:
-        raise HTTPException(status_code=400, detail='Username already exists')
-    hashed = get_password_hash(payload.password)
-    u = User(username=payload.username, password=hashed, role=payload.role)
-    db.add(u)
-    db.commit()
-    db.refresh(u)
-    return UserOut(id=u.id, username=u.username, role=u.role or '')
+def create_user(payload: UserCreate, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    """Create a new user.  If password is omitted a random one is generated."""
+    try:
+        user = user_service.create_user(
+            db,
+            username=payload.username,
+            password=payload.password,
+            role=payload.role,
+            email=payload.email,
+            display_name=payload.display_name,
+            current_user=current_user,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return UserOut.model_validate(user)
 
 
 @router.get("/{user_id}", response_model=UserOut, dependencies=[Depends(require_admin)])
 def get_user(user_id: int, db: Session = Depends(get_db)):
-    u = db.query(User).filter(User.id == user_id).first()
-    if not u:
-        raise HTTPException(status_code=404, detail='User not found')
-    return UserOut(id=u.id, username=u.username, role=u.role or '')
+    """Return a single user by ID."""
+    user = user_service.get_user(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return UserOut.model_validate(user)
 
 
 @router.put("/{user_id}", response_model=UserOut, dependencies=[Depends(require_admin)])
-def update_user(user_id: int, payload: UserCreate, db: Session = Depends(get_db)):
-    u = db.query(User).filter(User.id == user_id).first()
-    if not u:
-        raise HTTPException(status_code=404, detail='User not found')
-    u.username = payload.username
-    u.password = get_password_hash(payload.password)
-    u.role = payload.role
-    db.commit()
-    db.refresh(u)
-    return UserOut(id=u.id, username=u.username, role=u.role or '')
+def update_user(user_id: int, payload: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    """Update an existing user."""
+    try:
+        user = user_service.update_user(
+            db,
+            user_id,
+            username=payload.username,
+            password=payload.password or "__KEEP__",
+            role=payload.role,
+            email=payload.email,
+            display_name=payload.display_name,
+            status=payload.status,
+            current_user=current_user,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return UserOut.model_validate(user)
 
 
 @router.delete("/{user_id}", status_code=204, dependencies=[Depends(require_admin)])
-def delete_user(user_id: int, db: Session = Depends(get_db)):
-    u = db.query(User).filter(User.id == user_id).first()
-    if not u:
-        raise HTTPException(status_code=404, detail='User not found')
-    db.delete(u)
-    db.commit()
+def delete_user(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    """Delete a user."""
+    try:
+        user_service.delete_user(db, user_id, current_user=current_user)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
     return None
