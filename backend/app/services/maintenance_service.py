@@ -264,7 +264,7 @@ def create_record(
     if not content or not result:
         raise ValueError("content and result are required")
 
-    performed_at = date.today().strftime("%Y-%m-%d")
+    performed_at = datetime.utcnow()
     next_due = calc_next_due_date(performed_at, plan.interval_days)
 
     record = MaintenanceRecord(
@@ -323,7 +323,7 @@ def create_repair_record(
         content=content,
         result=result,
         performed_by=current_user.username,
-        performed_at=date.today().strftime("%Y-%m-%d"),
+        performed_at=datetime.utcnow(),
         parts_used=parts_used,
     )
     db.add(record)

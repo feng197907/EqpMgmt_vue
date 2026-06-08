@@ -36,13 +36,25 @@ _WERKZEUG_PBKDF2_RE = re.compile(r"^pbkdf2:sha256:\d+\$.+\$.+$")
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify *plain_password* against *hashed_password*.
 
-    Supports both legacy werkzeug ``pbkdf2:sha256`` hashes and modern
-    bcrypt hashes produced by :func:`get_password_hash`.
+    Supports legacy werkzeug hashes (``pbkdf2:sha256``, ``scrypt``) and
+    modern bcrypt hashes produced by :func:`get_password_hash`.
     """
+    # Try passlib first (bcrypt / pbkdf2_sha256)
     try:
-        return _pwd_context.verify(plain_password, hashed_password)
+        if _pwd_context.verify(plain_password, hashed_password):
+            return True
     except Exception:
-        return False
+        pass
+
+    # Fallback: werkzeug scrypt hashes (format: scrypt:N:r:p$salt$hash)
+    if hashed_password.startswith("scrypt:"):
+        from werkzeug.security import check_password_hash
+        try:
+            return check_password_hash(hashed_password, plain_password)
+        except Exception:
+            return False
+
+    return False
 
 
 def get_password_hash(password: str) -> str:

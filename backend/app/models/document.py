@@ -12,7 +12,7 @@ class Document(Base):
     file_path = Column(String(500), nullable=False)
     uploaded_by = Column(String(255), nullable=False)
     upload_time = Column(DateTime, nullable=True)
-    remarks = Column(Text, nullable=True)
+    remarks = Column(String(1000), nullable=True)
     status = Column(String(50), nullable=False, default="draft")
     download_count = Column(Integer, default=0)
     is_deleted = Column(Boolean, default=False)

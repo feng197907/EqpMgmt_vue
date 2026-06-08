@@ -22,7 +22,7 @@ from backend.app.schemas.maintenance import (
 )
 from backend.app.services import maintenance_service
 
-router = APIRouter(prefix="/devices/{device_id}/maintenance")
+router = APIRouter(prefix="/devices/{device_id}")
 
 
 @router.get("/plans", response_model=List[MaintenancePlanOut])

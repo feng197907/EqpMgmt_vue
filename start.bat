@@ -57,7 +57,7 @@ if not exist "%PROJECT_DIR%\frontend\node_modules" (
 :: ===== Start Backend =====
 echo.
 echo [Backend] Starting FastAPI on port 8000...
-start "Backend-FastAPI" cmd /c "cd /d %PROJECT_DIR% && uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload"
+start "Backend-FastAPI" cmd /c "cd /d %PROJECT_DIR% && .venv\Scripts\python.exe -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload"
 
 :: Wait for backend to be ready
 echo [Backend] Waiting for backend to be ready...

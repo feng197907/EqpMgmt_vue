@@ -19,11 +19,11 @@ class ElectronicSignature(Base):
     record_type = Column(String(64), nullable=False)       # e.g. maintenance_plan, document, device_change
     record_id = Column(Integer, nullable=False)
     signed_by = Column(String(128), nullable=False)        # signer username
-    signed_by_display = Column(String(128), nullable=False) # signer display name snapshot
+    signed_by_display = Column(String(100), nullable=False) # signer display name snapshot
     sign_meaning = Column(String(32), nullable=False)      # approved / reviewed / executed / released
-    sign_meaning_label = Column(String(64), nullable=False) # Chinese label for the meaning
+    sign_meaning_label = Column(String(50), nullable=False) # Chinese label for the meaning
     signed_at = Column(DateTime, server_default=func.current_timestamp())
-    ip_address = Column(String(64), nullable=True)
+    ip_address = Column(String(50), nullable=True)
     remark = Column(Text, nullable=True)
     is_deleted = Column(Boolean, default=False)
 

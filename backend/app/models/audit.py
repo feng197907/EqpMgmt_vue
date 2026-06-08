@@ -1,5 +1,5 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text
-from datetime import datetime
+from sqlalchemy import Column, Integer, String, DateTime, Text, func
+
 from backend.app.db.session import Base
 
 
@@ -9,14 +9,14 @@ class AuditLog(Base):
     id = Column(Integer, primary_key=True, index=True)
     user = Column(String(128), nullable=True)
     action = Column(String(128), nullable=True)
-    target_type = Column(String(64), nullable=True)
+    target_type = Column(String(50), nullable=True)
     target_id = Column(Integer, nullable=True)
-    details = Column(Text, nullable=True)
-    before_value = Column(Text, nullable=True)
-    after_value = Column(Text, nullable=True)
-    reason = Column(Text, nullable=True)
-    ip_address = Column(String(64), nullable=True)
-    log_time = Column(DateTime, default=datetime.now)
+    details = Column(String(2000), nullable=True)
+    before_value = Column(String(1000), nullable=True)
+    after_value = Column(String(1000), nullable=True)
+    reason = Column(String(1000), nullable=True)
+    ip_address = Column(String(50), nullable=True)
+    log_time = Column(DateTime, server_default=func.current_timestamp())
 
 
 class SystemSetting(Base):
@@ -27,3 +27,4 @@ class SystemSetting(Base):
     setting_value = Column(Text, nullable=True)
     description = Column(String(256), nullable=True)
     updated_by = Column(String(128), nullable=True)
+    updated_at = Column(DateTime, server_default=func.current_timestamp(), onupdate=func.current_timestamp())

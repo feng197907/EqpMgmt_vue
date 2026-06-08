@@ -20,11 +20,10 @@ class DeviceChangeOut(BaseModel):
     """Schema for a device status-change response."""
     id: int
     device_id: int
-    current_status: Optional[str] = None
     new_status: str
     reason: Optional[str] = None
     requested_by: Optional[str] = None
-    requested_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
     status: str = "pending"
     decided_by: Optional[str] = None
     decided_at: Optional[datetime] = None

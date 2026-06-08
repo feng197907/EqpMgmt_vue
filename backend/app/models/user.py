@@ -8,10 +8,10 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(128), unique=True, nullable=False)
-    password = Column(String(256), nullable=False)
-    role = Column(String(64), nullable=True)
+    password = Column(String(255), nullable=False)
+    role = Column(String(50), nullable=True)
     status = Column(String(32), nullable=True)
-    permissions = Column(Text, nullable=True)
+    permissions = Column(String(500), nullable=True)
 
     # ── Enhanced fields (T02) ────────────────────────────────────────
     email = Column(String(256), nullable=True)

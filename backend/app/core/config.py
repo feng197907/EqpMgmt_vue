@@ -1,4 +1,11 @@
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# 加载项目根目录的 .env 文件（使用绝对路径，避免依赖当前工作目录）
+_project_root = Path(__file__).resolve().parent.parent.parent.parent
+load_dotenv(_project_root / ".env")
 
 
 class Settings:
@@ -23,7 +30,7 @@ class Settings:
         # ── MySQL Connection Pool ─────────────────────────────────────
         # Default DATABASE_URL points to a local MySQL instance.
         # Override via the DATABASE_URL environment variable in production.
-        default_mysql_url = "mysql+pymysql://root:password@127.0.0.1:3306/equipment_management"
+        default_mysql_url = "mysql+pymysql://root:password@127.0.0.1:3306/dms_db"
         self.SQLALCHEMY_DATABASE_URL: str = os.environ.get(
             "DATABASE_URL", default_mysql_url
         )

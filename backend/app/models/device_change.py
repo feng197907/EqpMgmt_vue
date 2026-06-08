@@ -14,11 +14,10 @@ class DeviceStatusRequest(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     device_id = Column(Integer, ForeignKey("devices.id"), nullable=False)
-    current_status = Column(String(32), nullable=False)
     new_status = Column(String(32), nullable=False)
-    reason = Column(Text, nullable=True)
+    reason = Column(String(1000), nullable=True)
     requested_by = Column(String(128), nullable=False)
-    requested_at = Column(DateTime, server_default=func.current_timestamp())
+    created_at = Column("created_at", DateTime, server_default=func.current_timestamp())
     status = Column(String(32), default="pending")  # pending / approved / rejected
     decided_by = Column(String(128), nullable=True)
     decided_at = Column(DateTime, nullable=True)

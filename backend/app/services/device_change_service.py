@@ -30,7 +30,7 @@ def list_change_requests(
         q = q.filter(DeviceStatusRequest.status == status)
     if device_id:
         q = q.filter(DeviceStatusRequest.device_id == device_id)
-    return q.order_by(DeviceStatusRequest.requested_at.desc()).all()
+    return q.order_by(DeviceStatusRequest.created_at.desc()).all()
 
 
 def get_change_request(db: Session, request_id: int) -> DeviceStatusRequest:
@@ -59,7 +59,6 @@ def create_change_request(
 
     request = DeviceStatusRequest(
         device_id=device_id,
-        current_status=device.status,
         new_status=new_status,
         reason=reason,
         requested_by=current_user.username,

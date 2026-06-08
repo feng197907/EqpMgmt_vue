@@ -56,7 +56,7 @@ from backend.app.api import approvals as approvals_router
 app.include_router(approvals_router.router, prefix="/api/v1/approvals", tags=["approvals"])
 
 from backend.app.api import maintenance as maintenance_router
-app.include_router(maintenance_router.router, prefix="/api/v1", tags=["maintenance"])
+app.include_router(maintenance_router.router, prefix="/api/v1/maintenance", tags=["maintenance"])
 
 from backend.app.api import spare_parts as spare_parts_router
 app.include_router(spare_parts_router.router, prefix="/api/v1/spare-parts", tags=["spare_parts"])
