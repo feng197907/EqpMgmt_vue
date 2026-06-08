@@ -31,7 +31,7 @@ def create_device(payload: DeviceCreate, db: Session = Depends(get_db)):
     existing = db.query(Device).filter(Device.device_code == payload.device_code).first()
     if existing:
         raise HTTPException(status_code=400, detail="Device code already exists")
-    device = Device(**payload.dict())
+    device = Device(**payload.dict(), status="active")
     db.add(device)
     db.commit()
     db.refresh(device)

@@ -1,9 +1,7 @@
-from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
-from backend.app.db.session import SessionLocal
+from backend.app.api.deps import get_db, get_current_user
 from backend.app.schemas.auth import TokenResponse, UserOut, LoginRequest
 from backend.app.services.auth_service import (
     authenticate_user,
@@ -13,18 +11,8 @@ from backend.app.services.auth_service import (
     is_refresh_token,
 )
 from backend.app.models.user import User
-from backend.app.core.config import settings
 
 router = APIRouter()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -55,18 +43,6 @@ def refresh_token(refresh_body: dict, db: Session = Depends(get_db)):
     access_token = create_access_token({"sub": str(user.id), "role": user.role})
     refresh_token = create_refresh_token({"sub": str(user.id), "role": user.role})
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
-
-
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
-    try:
-        payload = decode_token(token)
-        user_id = int(payload.get("sub"))
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication credentials")
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    return user
 
 
 @router.get("/me", response_model=UserOut)

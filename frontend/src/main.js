@@ -27,10 +27,7 @@ axios.interceptors.response.use(
 				try {
 					const { refreshToken } = await import('./api/auth')
 					const data = await refreshToken(refresh)
-					const newAccess = data.access_token || data.access_token || data.accessToken || data.accessToken
-					// support different key names
-					const access = data.access_token || data.accessToken || data.accessToken || data.accessToken
-					const tokenVal = data.access_token || data.accessToken || data.accessToken || data.accessToken || data.accessToken
+					const tokenVal = data.access_token
 					if (tokenVal) {
 						localStorage.setItem('access_token', tokenVal)
 						axios.defaults.headers.common['Authorization'] = `Bearer ${tokenVal}`

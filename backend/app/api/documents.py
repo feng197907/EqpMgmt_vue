@@ -8,12 +8,14 @@ from io import StringIO
 
 from backend.app.api.deps import get_db, require_admin, get_current_user
 from backend.app.models.document import Document
+from backend.app.models.approval import ApprovalRequest, ApprovalStep
 from backend.app.schemas.document import DocumentCreate, DocumentOut
 from backend.app.models.device import Device
+from backend.app.models.user import User
 
 from datetime import datetime
 from utils.audit import log_action
-from database import get_system_setting, get_db as legacy_get_db
+from database import get_system_setting
 
 router = APIRouter()
 
@@ -101,37 +103,59 @@ def download_document(doc_id: int, db: Session = Depends(get_db), current_user=D
 
 
 @router.post("/{doc_id}/submit")
-def submit_document(doc_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    doc = db.query(Document).filter(Document.id == doc_id, Document.is_deleted == False).first()
+def submit_document(
+    doc_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    doc = db.query(Document).filter(
+        Document.id == doc_id, Document.is_deleted == False
+    ).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
     if doc.status != "draft":
         raise HTTPException(status_code=400, detail="Document status does not allow submit")
+
     approval_enabled = get_system_setting("approval_enabled", "true")
     if approval_enabled != "true":
         doc.status = "active"
         db.commit()
-        log_action(getattr(current_user, 'username', 'system'), "submit_document", "document", doc.id, "提交（审批禁用，直接生效）")
+        log_action(
+            current_user.username, "submit_document", "document", doc.id,
+            "提交（审批禁用，直接生效）"
+        )
         return {"status": "active"}
 
-    # create an approval request (legacy raw DB since approvals tables are not modeled yet)
-    conn = legacy_get_db()
-    cur = conn.cursor()
-    cur.execute("INSERT INTO approval_requests (doc_id, status, created_by, current_step) VALUES (%s, 'pending', %s, 1)", (doc.id, getattr(current_user, 'username', 'system')))
-    request_id = cur.lastrowid
-    # insert approval steps according to original app config
+    # 创建审批请求和审批步骤
+    request = ApprovalRequest(
+        doc_id=doc.id,
+        status="pending",
+        created_by=current_user.username,
+        current_step=1,
+    )
+    db.add(request)
+    db.flush()  # 获取 request.id
+
     try:
         from config import APPROVAL_STEPS
-        for idx, step in enumerate(APPROVAL_STEPS, start=1):
-            cur.execute("INSERT INTO approval_steps (request_id, step_order, approver_role) VALUES (%s, %s, %s)", (request_id, idx, step.get('role')))
+        for idx, step_config in enumerate(APPROVAL_STEPS, start=1):
+            step = ApprovalStep(
+                request_id=request.id,
+                step_order=idx,
+                approver_role=step_config.get("role"),
+                status="pending",
+            )
+            db.add(step)
     except Exception:
-        # if config not available or APPROVAL_STEPS not defined, skip creating steps
         pass
-    cur.execute("UPDATE documents SET status = 'pending' WHERE id = %s", (doc.id,))
-    conn.commit()
-    conn.close()
-    log_action(getattr(current_user, 'username', 'system'), "submit_document", "document", doc.id, "提交审批")
-    return {"status": "pending", "request_id": request_id}
+
+    doc.status = "pending"
+    db.commit()
+    log_action(
+        current_user.username, "submit_document", "document", doc.id,
+        "提交审批"
+    )
+    return {"status": "pending", "request_id": request.id}
 
 
 @router.delete("/{doc_id}", dependencies=[Depends(require_admin)])

@@ -31,16 +31,12 @@ export default {
       error.value = ''
       try {
         const res = await login(form.value.username, form.value.password)
-        const token = res.access_token || res.accessToken || res.accessToken
-        const refresh = res.refresh_token || res.refreshToken || res.refreshToken
+        const token = res.access_token
+        const refresh = res.refresh_token
         localStorage.setItem('access_token', token)
         if (refresh) localStorage.setItem('refresh_token', refresh)
-        // set headers for both api instance and global axios
+        // set Authorization header for api instance
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`
-        try {
-          const axios = (await import('axios')).default
-          axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
-        } catch (e) {}
         router.push('/dashboard')
       } catch (e) {
         error.value = e.response?.data?.detail || '登录失败，请检查账号密码'

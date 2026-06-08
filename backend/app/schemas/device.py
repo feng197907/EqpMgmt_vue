@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional
 
 
@@ -26,5 +26,4 @@ class DeviceOut(DeviceBase):
     status: Optional[str] = None
     is_deleted: Optional[bool] = False
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

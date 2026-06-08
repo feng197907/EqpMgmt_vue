@@ -1,90 +1,126 @@
 <template>
   <div>
-    <h2>Upload Document</h2>
-    <form @submit.prevent="onSubmit">
-      <div>
-        <label>Device</label>
-        <select v-model="device_id" required>
-          <option v-if="loadingDevices" disabled>加载中...</option>
-          <option v-for="d in devices" :key="d.id" :value="d.id">{{ d.device_code }} - {{ d.device_name }}</option>
-        </select>
-      </div>
-      <div>
-        <label>Doc Type</label>
-        <input v-model="doc_type" required />
-      </div>
-      <div>
-        <label>Version</label>
-        <input v-model="version" required />
-      </div>
-      <div>
-        <label>Remarks</label>
-        <input v-model="remarks" />
-      </div>
-      <div>
-        <label>File(s)</label>
-        <input type="file" ref="fileInput" multiple />
-      </div>
-      <button type="submit" :disabled="uploading">{{ uploading ? '上传中...' : 'Upload' }}</button>
-    </form>
+    <h2 style="margin:0 0 16px;">上传文档</h2>
+
+    <el-card style="max-width:600px;">
+      <el-form :model="form" label-width="100px" @submit.prevent="onSubmit">
+        <el-form-item label="所属设备" required>
+          <el-select v-model="form.device_id" placeholder="请选择设备" style="width:100%"
+            :loading="loadingDevices" filterable>
+            <el-option
+              v-for="d in devices"
+              :key="d.id"
+              :label="`${d.device_code} - ${d.device_name}`"
+              :value="d.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="文档类型" required>
+          <el-input v-model="form.doc_type" placeholder="如: manual, calibration, certificate" />
+        </el-form-item>
+        <el-form-item label="版本号" required>
+          <el-input v-model="form.version" placeholder="如: 1.0" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="form.remarks" type="textarea" :rows="2" />
+        </el-form-item>
+        <el-form-item label="选择文件" required>
+          <el-upload
+            ref="uploadRef"
+            :auto-upload="false"
+            :limit="10"
+            :on-exceed="onExceed"
+            drag
+          >
+            <el-icon style="font-size:40px;"><UploadFilled /></el-icon>
+            <div style="margin-top:8px;">将文件拖到此处，或点击上传</div>
+          </el-upload>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :loading="uploading" @click="onSubmit">
+            {{ uploading ? '上传中...' : '提交上传' }}
+          </el-button>
+          <el-button @click="$router.push('/documents')">返回</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
   </div>
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { UploadFilled } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import { uploadDocument } from '../api/documents'
 import { listDevices } from '../api/devices'
-import { useRouter } from 'vue-router'
 
 export default {
+  components: { UploadFilled },
   setup() {
-    const device_id = ref('1')
-    const doc_type = ref('manual')
-    const version = ref('1.0')
-    const remarks = ref('')
-    const fileInput = ref(null)
     const router = useRouter()
-
+    const uploadRef = ref(null)
     const devices = ref([])
     const loadingDevices = ref(false)
+    const uploading = ref(false)
+
+    const form = reactive({
+      device_id: null,
+      doc_type: 'manual',
+      version: '1.0',
+      remarks: '',
+    })
+
     const loadDevices = async () => {
       loadingDevices.value = true
       try {
         devices.value = await listDevices()
+        if (devices.value.length) form.device_id = devices.value[0].id
       } catch (e) {
-        console.warn('无法加载设备列表', e)
+        ElMessage.warning('无法加载设备列表')
       } finally {
         loadingDevices.value = false
       }
     }
 
-    const uploading = ref(false)
+    const onExceed = () => {
+      ElMessage.warning('最多上传 10 个文件')
+    }
+
     const onSubmit = async () => {
-      const files = fileInput.value.files
-      if (!files || files.length === 0) return alert('请选择文件')
+      const files = uploadRef.value?.uploadFiles || []
+      if (!files.length) {
+        ElMessage.warning('请选择文件')
+        return
+      }
+      if (!form.device_id) {
+        ElMessage.warning('请选择设备')
+        return
+      }
       uploading.value = true
       try {
-        for (let i = 0; i < files.length; i++) {
+        for (const file of files) {
           const fd = new FormData()
-          fd.append('device_id', device_id.value)
-          fd.append('doc_type', doc_type.value)
-          fd.append('version', version.value)
-          fd.append('remarks', remarks.value)
-          fd.append('file', files[i])
+          fd.append('device_id', form.device_id)
+          fd.append('doc_type', form.doc_type)
+          fd.append('version', form.version)
+          fd.append('remarks', form.remarks)
+          fd.append('file', file.raw)
           await uploadDocument(fd)
         }
-        alert('上传完成')
+        ElMessage.success('上传完成')
         router.push('/documents')
       } catch (err) {
-        console.error('上传失败', err)
-        alert('上传失败: ' + (err?.response?.data || err?.message || err))
+        const msg = err?.response?.data?.detail || err?.message || '上传失败'
+        ElMessage.error(msg)
       } finally {
         uploading.value = false
       }
     }
 
-    loadDevices()
-    return { device_id, doc_type, version, remarks, fileInput, onSubmit, devices, loadingDevices, uploading }
-  }
+    onMounted(loadDevices)
+
+    return { form, uploadRef, devices, loadingDevices, uploading, onExceed, onSubmit }
+  },
 }
 </script>

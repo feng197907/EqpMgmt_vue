@@ -1,103 +1,129 @@
 <template>
   <div>
-    <h2>Documents</h2>
-    <div style="margin-bottom:10px">
-      <router-link to="/documents/upload">上传文档</router-link>
-      <router-link to="/approvals" style="margin-left:12px">审批任务</router-link>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h2 style="margin:0;">文档管理</h2>
+      <el-space>
+        <el-button type="primary" @click="$router.push('/documents/upload')">
+          <el-icon><Upload /></el-icon> 上传文档
+        </el-button>
+        <el-button @click="$router.push('/approvals')">审批任务</el-button>
+      </el-space>
     </div>
 
-    <div style="margin-bottom:8px">
-      <label>类型筛选：</label>
-      <select v-model="filters.type">
-        <option value="">全部</option>
-        <option value="manual">手册</option>
-        <option value="calibration">校准记录</option>
-        <option value="certificate">证书</option>
-      </select>
-      <label style="margin-left:8px">关键字：</label>
-      <input v-model="filters.q" @keyup.enter="applyFilters" />
-      <button @click="applyFilters">查询</button>
-    </div>
+    <!-- 筛选区 -->
+    <el-card style="margin-bottom:16px;">
+      <el-form :inline="true">
+        <el-form-item label="关键字">
+          <el-input v-model="filters.q" placeholder="文档名称" clearable @keyup.enter="applyFilters" />
+        </el-form-item>
+        <el-form-item label="类型">
+          <el-select v-model="filters.type" placeholder="全部" clearable style="width:140px;">
+            <el-option label="手册" value="manual" />
+            <el-option label="校准记录" value="calibration" />
+            <el-option label="证书" value="certificate" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="applyFilters">查询</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
 
-    <table>
-      <thead><tr><th>ID</th><th>名称</th><th>类型</th><th>版本</th><th>状态</th><th>操作</th></tr></thead>
-      <tbody>
-        <tr v-for="doc in pageDocs" :key="doc.id">
-          <td>{{ doc.id }}</td>
-          <td>{{ doc.doc_name }}</td>
-          <td>{{ doc.doc_type }}</td>
-          <td>{{ doc.version }}</td>
-          <td>{{ doc.status }}</td>
-          <td>
-            <a :href="downloadUrl(doc.id)" target="_blank">下载</a>
-            <button @click="submit(doc.id)" :disabled="doc.status !== 'draft'">提交审批</button>
-            <button @click="del(doc.id)">删除</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-
-    <div style="margin-top:8px">
-      <button @click="prevPage" :disabled="page===1">上一页</button>
-      <span> 第 {{ page }} / {{ totalPages }} 页 </span>
-      <button @click="nextPage" :disabled="page===totalPages">下一页</button>
-      <select v-model.number="pageSize" style="margin-left:8px" @change="onPageSizeChange">
-        <option :value="5">5</option>
-        <option :value="10">10</option>
-        <option :value="20">20</option>
-      </select>
-    </div>
+    <!-- 文档表格 -->
+    <el-card>
+      <el-table :data="docs" stripe style="width:100%" v-loading="loading">
+        <el-table-column prop="id" label="ID" width="70" />
+        <el-table-column prop="doc_name" label="文档名称" min-width="200" />
+        <el-table-column prop="doc_type" label="类型" width="120" />
+        <el-table-column prop="version" label="版本" width="80" />
+        <el-table-column prop="status" label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="uploaded_by" label="上传者" width="120" />
+        <el-table-column prop="upload_time" label="上传时间" width="160" />
+        <el-table-column label="操作" width="240" fixed="right">
+          <template #default="{ row }">
+            <el-button size="small" @click="downloadDoc(row.id)">下载</el-button>
+            <el-button
+              size="small"
+              type="warning"
+              :disabled="row.status !== 'draft'"
+              @click="submit(row.id)"
+            >提交审批</el-button>
+            <el-button size="small" type="danger" @click="del(row.id)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
   </div>
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue'
-import { listDocuments, downloadUrl, submitDocument, deleteDocument } from '../api/documents'
+import { ref, onMounted } from 'vue'
+import { Upload } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  listDocuments,
+  downloadUrl,
+  submitDocument,
+  deleteDocument,
+} from '../api/documents'
 
 export default {
+  components: { Upload },
   setup() {
     const docs = ref([])
-    const page = ref(1)
-    const pageSize = ref(10)
+    const loading = ref(false)
     const filters = ref({ q: '', type: '' })
 
     const load = async () => {
+      loading.value = true
       try {
-        docs.value = await listDocuments({ q: filters.value.q, doc_type: filters.value.type })
+        const params = {}
+        if (filters.value.q) params.q = filters.value.q
+        if (filters.value.type) params.doc_type = filters.value.type
+        docs.value = await listDocuments(params)
       } catch (e) {
-        alert('加载文档失败')
+        console.error('加载文档失败', e)
+      } finally {
+        loading.value = false
       }
     }
 
-    const downloadUrlFn = (id) => downloadUrl(id)
+    const downloadDoc = (id) => {
+      window.open(downloadUrl(id), '_blank')
+    }
 
     const submit = async (id) => {
-      if (!confirm('确认提交审批？')) return
-      await submitDocument(id)
-      alert('已提交审批')
-      await load()
+      try {
+        await ElMessageBox.confirm('确认提交审批？', '提示', { type: 'warning' })
+        await submitDocument(id)
+        ElMessage.success('已提交审批')
+        await load()
+      } catch (e) { /* cancelled or error */ }
     }
 
     const del = async (id) => {
-      if (!confirm('确认删除？')) return
-      await deleteDocument(id)
-      alert('已删除')
-      await load()
+      try {
+        await ElMessageBox.confirm('确认删除该文档？', '警告', { type: 'error' })
+        await deleteDocument(id)
+        ElMessage.success('已删除')
+        await load()
+      } catch (e) { /* cancelled */ }
     }
+
+    const statusType = (status) => {
+      const map = { active: 'success', draft: 'info', pending: 'warning', archived: '' }
+      return map[status] || 'info'
+    }
+
+    const applyFilters = () => load()
 
     onMounted(load)
 
-    const totalPages = computed(() => Math.max(1, Math.ceil((docs.value || []).length / pageSize.value)))
-    const pageDocs = computed(() => {
-      const start = (page.value - 1) * pageSize.value
-      return (docs.value || []).slice(start, start + pageSize.value)
-    })
-    const prevPage = () => { if (page.value>1) page.value-- }
-    const nextPage = () => { if (page.value<totalPages.value) page.value++ }
-    const onPageSizeChange = () => { page.value = 1 }
-    const applyFilters = () => { page.value = 1; load() }
-
-    return { docs, downloadUrl: downloadUrlFn, submit, del, page, pageSize, pageDocs, totalPages, prevPage, nextPage, onPageSizeChange, filters, applyFilters }
-  }
+    return { docs, loading, filters, applyFilters, downloadDoc, submit, del, statusType }
+  },
 }
 </script>
