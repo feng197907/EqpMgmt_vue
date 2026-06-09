@@ -43,6 +43,7 @@ const routes = [
         path: '/users',
         name: 'Users',
         component: () => import('../pages/Users.vue'),
+        meta: { requiresAdmin: true },
       },
       {
         path: '/spare-parts',
@@ -58,6 +59,7 @@ const routes = [
         path: '/audit-logs',
         name: 'AuditLogs',
         component: () => import('../pages/AuditLogs.vue'),
+        meta: { requiresAdmin: true },
       },
       {
         path: '/settings',
@@ -87,15 +89,32 @@ const router = createRouter({ history: createWebHistory(), routes })
 
 export default router
 
-// Simple auth guard: protect all routes except /login
+// Auth + role guard
+// - All routes except /login require a valid token
+// - Routes with meta.requiresAdmin are admin-only; other roles are redirected to /dashboard
 router.beforeEach((to, from, next) => {
   const publicPaths = ['/login']
   const token = localStorage.getItem('access_token')
+
   if (!token && !publicPaths.includes(to.path)) {
     return next('/login')
   }
   if (token && to.path === '/login') {
     return next('/dashboard')
   }
+
+  // Admin-only pages: redirect non-admin users to dashboard
+  if (to.meta?.requiresAdmin) {
+    try {
+      // Decode JWT payload (no crypto verification — server enforces the real check)
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      if (payload.role !== 'admin') {
+        return next('/dashboard')
+      }
+    } catch {
+      return next('/login')
+    }
+  }
+
   return next()
 })

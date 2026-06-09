@@ -111,8 +111,14 @@ def upload_document(
 def download_document(db: Session, doc_id: int, *, current_user: Optional[User] = None) -> Document:
     """Increment download count and return the document for download."""
     doc = get_document(db, doc_id)
-    if doc.status not in {"active", "archived"}:
+    # draft 文档仅上传者本人或管理员可下载；active/archived 所有人可下载
+    if doc.status not in {"active", "archived", "draft"}:
         raise PermissionError("Document status does not allow download")
+    if doc.status == "draft":
+        is_owner = current_user and (doc.uploaded_by == current_user.username)
+        is_admin = current_user and getattr(current_user, "role", None) in {"admin", "superadmin"}
+        if not (is_owner or is_admin):
+            raise PermissionError("Draft document can only be downloaded by the uploader or admin")
 
     doc.download_count = (doc.download_count or 0) + 1
     operator = current_user.username if current_user else "system"

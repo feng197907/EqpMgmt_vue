@@ -81,7 +81,8 @@ def download_document(doc_id: int, db: Session = Depends(get_db), current_user: 
         raise HTTPException(status_code=403, detail=str(exc))
 
     # Resolve the file path
-    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    # __file__ = backend/app/api/documents.py → 上4层才是项目根（与 document_service.py 上传时保持一致）
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     path = doc.file_path
     if not os.path.isabs(path):
         path = os.path.join(repo_root, path)

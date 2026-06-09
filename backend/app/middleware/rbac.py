@@ -34,6 +34,8 @@ PUBLIC_PATHS: FrozenSet[str] = frozenset(
         "/openapi.json",
         "/api/v1/auth/login",
         "/api/v1/auth/refresh",
+        "/api/v1/log/js-error",
+        "/api/v1/password/request-reset",  # self-service reset, no auth needed
     }
 )
 
@@ -77,6 +79,10 @@ class RBACMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         path: str = request.url.path
+
+        # ── Skip OPTIONS (CORS preflight) ──────────────────────────────
+        if request.method == "OPTIONS":
+            return await call_next(request)
 
         # ── Skip non-API / public paths ────────────────────────────────
         if self._is_public(path):

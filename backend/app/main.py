@@ -4,14 +4,67 @@ Registers all API routers, middleware, and startup/shutdown lifecycle
 hooks.  Legacy Flask compatibility code has been removed.
 """
 
+import logging
+import os
+import time
+import traceback
+import uuid
 from contextlib import asynccontextmanager
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from backend.app.db.session import engine, Base
 from backend.app.middleware.audit import AuditMiddleware
 from backend.app.middleware.rbac import RBACMiddleware
+
+# ── Logging Configuration ─────────────────────────────────────────────────
+LOG_DIR = Path(__file__).resolve().parent.parent.parent / "logs"
+LOG_DIR.mkdir(exist_ok=True)
+
+_log_formatter = logging.Formatter(
+    "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+
+# Console handler
+_console = logging.StreamHandler()
+_console.setLevel(logging.INFO)
+_console.setFormatter(_log_formatter)
+
+# Rotating file handler — all levels (max 10 MB × 5 files)
+_app_file = RotatingFileHandler(
+    LOG_DIR / "app.log", maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8"
+)
+_app_file.setLevel(logging.DEBUG)
+_app_file.setFormatter(_log_formatter)
+
+# Error-only rotating file (max 5 MB × 3 files)
+_err_file = RotatingFileHandler(
+    LOG_DIR / "error.log", maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
+)
+_err_file.setLevel(logging.ERROR)
+_err_file.setFormatter(_log_formatter)
+
+# Configure root logger
+_root = logging.getLogger()
+_root.setLevel(logging.DEBUG)
+_root.handlers.clear()
+_root.addHandler(_console)
+_root.addHandler(_app_file)
+_root.addHandler(_err_file)
+
+# Silence noisy third-party loggers
+logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+logging.getLogger("uvicorn.access").handlers.clear()
+logging.getLogger("uvicorn.access").addHandler(_app_file)
+logging.getLogger("uvicorn.access").propagate = False
+
+logger = logging.getLogger(__name__)
+logger.info("Logging configured — app.log / error.log -> %s", LOG_DIR)
 
 
 @asynccontextmanager
@@ -25,18 +78,92 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="DMS FastAPI Backend", lifespan=lifespan)
 
-# ── CORS ───────────────────────────────────────────────────────────────────
+
+# ── Global Exception Handlers ──────────────────────────────────────────────
+# Catch ALL unhandled exceptions so they are logged to error.log with full
+# stack traces, instead of silently going to uvicorn's default handler.
+
+from fastapi.exceptions import RequestValidationError
+
+@app.middleware("http")
+async def trace_id_middleware(request: Request, call_next):
+    """Attach a unique trace_id to every request for log correlation."""
+    trace_id = uuid.uuid4().hex[:12]
+    request.state.trace_id = trace_id
+    start = time.time()
+    response = await call_next(request)
+    duration = time.time() - start
+    logger.info(
+        "[%s] %s %s → %d (%.3fs)",
+        trace_id,
+        request.method,
+        request.url.path,
+        response.status_code,
+        duration,
+    )
+    response.headers["X-Trace-Id"] = trace_id
+    return response
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Catch-all for unhandled exceptions."""
+    trace_id = getattr(request.state, "trace_id", uuid.uuid4().hex[:12])
+    logger.error(
+        "[%s] Unhandled exception | %s %s | %s: %s\n%s",
+        trace_id,
+        request.method,
+        request.url.path,
+        type(exc).__name__,
+        exc,
+        traceback.format_exc(),
+    )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal Server Error",
+            "error": str(exc),
+            "trace_id": trace_id,
+        },
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Log request-body validation errors at WARNING level."""
+    trace_id = getattr(request.state, "trace_id", uuid.uuid4().hex[:12])
+    logger.warning(
+        "[%s] Validation error | %s %s | errors=%s",
+        trace_id,
+        request.method,
+        request.url.path,
+        exc.errors(),
+    )
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": "Validation Error",
+            "errors": exc.errors(),
+            "trace_id": trace_id,
+        },
+    )
+
+# ── Middleware (order matters: last added = first executed) ─────────────────
+# Place CORSMiddleware LAST so it wraps everything — every response,
+# including 401/403 from RBAC, gets CORS headers.
+app.add_middleware(RBACMiddleware)
+app.add_middleware(AuditMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# ── Middleware (order matters: last added = first executed) ─────────────────
-app.add_middleware(AuditMiddleware)
-app.add_middleware(RBACMiddleware)
 
 # ── API Routers ────────────────────────────────────────────────────────────
 
@@ -80,6 +207,9 @@ app.include_router(dashboard_router.router, prefix="/api/v1/dashboard", tags=["d
 
 from backend.app.api import password as password_router
 app.include_router(password_router.router, prefix="/api/v1/password", tags=["password"])
+
+from backend.app.api import log as log_router
+app.include_router(log_router.router, prefix="/api/v1/log", tags=["log"])
 
 
 @app.get("/")

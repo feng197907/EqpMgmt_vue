@@ -20,6 +20,7 @@ human-readable details).
 
 import json
 import logging
+import time
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import event
@@ -143,12 +144,36 @@ class AuditMiddleware(BaseHTTPMiddleware):
         except Exception:
             db = None
 
+        # ── Measure request duration ────────────────────────────────────
+        start = time.monotonic()
+
         response = await call_next(request)
 
-        # ── Request-level audit log ─────────────────────────────────
-        logger.info(f"{request.method} {request.url.path} {user_info} status={response.status_code}")
+        duration_ms = round((time.monotonic() - start) * 1000, 1)
 
-        # ── Automatic value-change audit ────────────────────────────
+        # ── Request-level audit log ─────────────────────────────────────
+        #   - 5xx → ERROR
+        #   - 4xx → WARNING
+        #   - 2xx/3xx → INFO
+        level = logging.INFO
+        if response.status_code >= 500:
+            level = logging.ERROR
+        elif response.status_code >= 400:
+            level = logging.WARNING
+
+        qs = f" qs={request.query_params}" if str(request.query_params) else ""
+        logger.log(
+            level,
+            "%s %s %s status=%d duration=%.1fms%s",
+            request.method,
+            request.url.path,
+            user_info,
+            response.status_code,
+            duration_ms,
+            qs,
+        )
+
+        # ── Automatic value-change audit ────────────────────────────────
         # Only persist automatic changes if the request succeeded (2xx).
         if db is not None and 200 <= response.status_code < 300:
             tracker: Optional[_ChangeTracker] = getattr(db, "_audit_change_tracker", None)

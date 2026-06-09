@@ -3,19 +3,50 @@ import App from './App.vue'
 import router from './router'
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
+import './styles/theme.css'
 import axios from 'axios'
 import api from './api/auth'
+import { reportJsError } from './api/log'
 
-// Set baseURL and attach token if present
-axios.defaults.baseURL = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000'
-api.defaults.baseURL = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000'
+// ── Global JS Error Capture ────────────────────────────────────────────────
+
+// Layer 1: synchronous script errors (window.onerror)
+window.onerror = function (message, source, lineno, colno, error) {
+  reportJsError({
+    message: String(message),
+    source,
+    lineno,
+    colno,
+    stack: error?.stack,
+    type: 'onerror',
+  })
+  return false // don't suppress default browser console output
+}
+
+// Layer 2: unhandled Promise rejections
+window.addEventListener('unhandledrejection', (event) => {
+  const reason = event.reason
+  reportJsError({
+    message: reason?.message || String(reason) || 'Unhandled Promise rejection',
+    source: null,
+    lineno: null,
+    colno: null,
+    stack: reason?.stack || null,
+    type: 'unhandledrejection',
+  })
+})
+
+// ── Base URL & Auth Token ─────────────────────────────────────────────────
+// In dev mode baseURL is empty so requests go through Vite proxy.
+axios.defaults.baseURL = import.meta.env.VITE_API_BASE || ''
+api.defaults.baseURL = import.meta.env.VITE_API_BASE || ''
 const token = localStorage.getItem('access_token')
 if (token) {
 	axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
 	api.defaults.headers.common['Authorization'] = `Bearer ${token}`
 }
 
-// axios interceptor: refresh access token when receiving 401
+// ── Axios Interceptor: refresh access token on 401 ────────────────────────
 axios.interceptors.response.use(
 	response => response,
 	async error => {
@@ -48,7 +79,23 @@ axios.interceptors.response.use(
 	}
 )
 
+// ── Vue App ────────────────────────────────────────────────────────────────
 const app = createApp(App)
+
+// Layer 3: Vue component errors (renders, watchers, lifecycle hooks)
+app.config.errorHandler = (err, instance, info) => {
+  reportJsError({
+    message: err?.message || String(err),
+    source: info || null,
+    lineno: null,
+    colno: null,
+    stack: err?.stack || null,
+    type: 'vue_errorHandler',
+  })
+  // Re-throw so the browser console still shows the error
+  console.error('[Vue Error]', err, info)
+}
+
 app.use(router)
 app.use(ElementPlus)
 app.mount('#app')

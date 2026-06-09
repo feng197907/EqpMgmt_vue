@@ -13,9 +13,14 @@ class PasswordResetRequest(BaseModel):
     user_id: int
 
 
+class UserSelfResetRequest(BaseModel):
+    """Schema for a user self-requesting a password reset (no auth required)."""
+    username: str
+
+
 class PasswordResetProcess(BaseModel):
     """Schema for processing (completing) a password reset request."""
-    new_password: str
+    new_password: Optional[str] = None
 
 
 class PasswordChange(BaseModel):
